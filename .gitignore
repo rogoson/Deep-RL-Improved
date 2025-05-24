@@ -1,0 +1,15 @@
+# Ignore specific file
+ActionsToTake.txt
+# Ignore folders
+__pycache__/
+venv/
+plots_/
+OLDMISC/
+UnderDevelopment/
+.vscode
+
+
+# Ignore all files with .docx extension
+*.docx
+*.drawio
+*.xlsx
