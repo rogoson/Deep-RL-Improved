@@ -43,7 +43,7 @@ class TimeSeriesEnvironment(gym.Env):
         self.maxAllocationChange = 1  # liquidigy parameter.
 
         # Required for Differential Sharpe Ratio
-        self.decayRate = 0.01
+        self.decayRate = None
         self.meanReturn = None
         self.meanSquaredReturn = None
 
@@ -69,8 +69,6 @@ class TimeSeriesEnvironment(gym.Env):
         :return: The observation matrix for the agent to use.
         The observation matrix is sort of like a rolled up summary of what has happened in the last TIME_WINDOW timesteps.
         """
-        # SHOULD NOT be trying to get market data if this is the case - will leak future info
-        # unforgivable stupidity #2 - fixed. Indexing errors, along with correct LSTM direction.
         if i < TIME_WINDOW:
             return
         observationMatrix = []
@@ -139,9 +137,6 @@ class TimeSeriesEnvironment(gym.Env):
             reward = self.calculateDifferentialSharpeRatio(reward)
         else:
             raise ValueError("Unknown reward method: " + rewardMethod)
-        # unforgivable stupidity #1 - fixed - I removed this.
-        # if info.get("reason") == "portfolio_below_70%":
-        #     reward -= 100 * abs(reward)  # big penalty for loss of 30%
 
         if not done and returnNextObs:
             nextObs = self.getData(self.timeStep)
