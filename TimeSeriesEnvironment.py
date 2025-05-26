@@ -4,7 +4,11 @@ import torch
 from gymnasium import spaces
 
 device = torch.device("cpu")
-LOGGING = False  # Set to True to enable logging for debugging purposes
+LOGGING_MARKET_DATA = (
+    False  # Set to True to enable logging_MARKET_DATA for debugging purposes
+)
+LOGGING_CVAR_REWARD = False
+LOGGING_LOG_REWARD = False
 
 
 class TimeSeriesEnvironment(gym.Env):
@@ -72,20 +76,24 @@ class TimeSeriesEnvironment(gym.Env):
         if i < TIME_WINDOW:
             return
         observationMatrix = []
-        if LOGGING:
+        if LOGGING_MARKET_DATA:
             print(f"\n=== getMarketData at timestep i = {i} ===")
         for p in range(1, TIME_WINDOW + 1):
             index = i - p + 1
-            if LOGGING:
+            if LOGGING_MARKET_DATA:
                 print(f"[p = {p}] → index = {index}")
 
             allocations = self.allocations[index]
-            if LOGGING:
+            if LOGGING_MARKET_DATA:
                 print(f"  Allocations[{index}] = {allocations}")
             portfolioValue = torch.tensor(
-                [self.PORTFOLIO_VALUES[index]], dtype=torch.float32, device=device
+                [
+                    self.PORTFOLIO_VALUES[index] / self.startCash
+                ],  # normalised to prevent dominance
+                dtype=torch.float32,
+                device=device,
             )
-            if LOGGING:
+            if LOGGING_MARKET_DATA:
                 print(f"  PortfolioValue[{index}] = {portfolioValue}")
 
             obsVector = [allocations, portfolioValue]
@@ -94,7 +102,7 @@ class TimeSeriesEnvironment(gym.Env):
                 dataRow = dfTensor[
                     index
                 ]  # starts from current time step and goes back TIME_WINDOW steps
-                if LOGGING:
+                if LOGGING_MARKET_DATA:
                     print(f"  MarketData[{name}][{index}] = {dataRow.cpu().numpy()}")
                 obsVector.append(dataRow)
 
@@ -129,10 +137,13 @@ class TimeSeriesEnvironment(gym.Env):
 
         self.RETURNS.append(reward)
         self.PORTFOLIO_VALUES.append(newPortfolioValue)
+
         if rewardMethod == "CVaR":
             reward = self.getCVaRReward(reward)
         elif rewardMethod == "Standard Logarithmic Returns":
-            reward = self.getCVaRReward(reward, False)
+            reward = self.getLogReward(
+                self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+            )  # return ln(P_t / P_t-1) = ln(1 + r)
         elif "Differential" in rewardMethod:
             reward = self.calculateDifferentialSharpeRatio(reward)
         else:
@@ -186,6 +197,29 @@ class TimeSeriesEnvironment(gym.Env):
             maxDrawdown = max(maxDrawdown, drawdown)
         return maxDrawdown
 
+    def getLogReward(self, mostRecentPortfolioValue=None, previousPortfolioValue=None):
+        """
+        Returns the logarithmic reward based on the portfolio values.
+        :param mostRecentPortfolioValue: The most recent portfolio value.
+        :param previousPortfolioValue: The previous portfolio value.
+        :return: The logarithmic reward.
+        return ln(P_t / P_t-1) = ln(1 + r)
+        """
+        if LOGGING_LOG_REWARD:
+            print("+" * 50)
+            print(
+                f"Calculating Log Reward: mostRecentPortfolioValue = {mostRecentPortfolioValue}, previousPortfolioValue = {previousPortfolioValue}"
+            )
+            print(
+                f"Log Reward = ln({mostRecentPortfolioValue} / {previousPortfolioValue}) = {np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
+            )
+            print("+" * 50)
+        return (
+            np.log(mostRecentPortfolioValue / previousPortfolioValue)
+            if previousPortfolioValue is not None
+            else 0.0
+        )
+
     def calculateDifferentialSharpeRatio(self, currentReturn):
         """
         In line with Moody & Saffel's "Reinforcement Learning for Trading" 1998 Paper
@@ -215,25 +249,42 @@ class TimeSeriesEnvironment(gym.Env):
         differentialSharpeRatio = numerator / denom
         return differentialSharpeRatio
 
-    def normaliseValue(self, value):
-        return np.sign(value) * (np.log1p(np.abs(value)))
-
     def getCVaRReward(self, r, useCVaR=True):
         """
         CVaR reward calculation.
         :param r: The reward to be calculated.
         :param useCVaR: Whether to use CVaR or not. If not, the reward is just the normalised value of the reward.
+        It should be logChangeInCVaR penalty, otherwise normal log returns.
+        Issue: at the first timestep where CVaR is calculated, the change will be large as the previous value is 0. This isn't an issue, since the agent never sees this, but would need to be dealt with if the agent did.
         """
         if useCVaR and self.AGENT_RISK_AVERSION != 0:
+            if LOGGING_CVAR_REWARD:
+                print("*" * 50)
+                print(f"Calculating CVaR Reward with r = {r}")
             currentCVaR = self.calculateCVaR()
-            changeInCVaR = currentCVaR - self.CVaR[-1]
-            cVaRNum = self.normaliseValue(changeInCVaR)
+            if LOGGING_CVAR_REWARD:
+                print(f"Current CVaR = {currentCVaR}, Previous CVaR = {self.CVaR[-1]}")
+            changeInCVaR = -(currentCVaR - self.CVaR[-1])
+            cVaRNum = np.sign(changeInCVaR) * (
+                np.log1p(np.abs(changeInCVaR))
+            )  # optional as to whether you want to normalise this or not
+            if LOGGING_CVAR_REWARD:
+                print(f"Change in CVaR = {changeInCVaR}, Normalised = {cVaRNum}")
             riskPenalty = self.AGENT_RISK_AVERSION * cVaRNum
+            if LOGGING_CVAR_REWARD:
+                print(f"Risk Penalty = {riskPenalty}")
             self.CVaR.append(currentCVaR)
         else:
             riskPenalty = 0
-        scaledReward = self.normaliseValue(r)
+        scaledReward = self.getLogReward(
+            self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+        )
         finalReward = scaledReward - riskPenalty
+        if LOGGING_CVAR_REWARD:
+            print(
+                f"Scaled Reward = {scaledReward}, Final Reward (after penalty)= {finalReward}"
+            )
+            print("*" * 50)
         return finalReward
 
     def reset(
@@ -307,6 +358,11 @@ class TimeSeriesEnvironment(gym.Env):
         Actual CVaR calculation. This is done by sorting the returns and taking the mean of the worst 'percentage' of returns.
         CVaR returns 0 for the max(10, 1/percentage) timesteps, as there is not enough data to reasonably calculate it.
         This is to prevent early instability in the training process.
+        Limitations with this method:
+        - There may be instability in the calculation because the length of the returns array is changing - a pure limitation of the historical method (IF AND ONLY IF YOU VARY THE LENGTH OF THE RETURNS ARRAY (I don't think people do this, but I did because I wanted to get the rf involved quickly)).
+        - It is either we fix the returns array length and calculate of a smaller fixed horizon, which may be unstable, or:
+        - we let it get longer and more accurate.
+        - but maybe this is the point - as long as the agent doesn't make decisions that result in an increase in CVaR/downside risk, then it's fine for it to be rewarded?
         """
         if len(self.CVaR) < max(10, int(1 / percentage)):
             return np.mean(self.CVaR)
