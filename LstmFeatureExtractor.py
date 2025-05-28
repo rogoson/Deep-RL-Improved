@@ -64,7 +64,7 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         features = self.tanh(self.fc1(hidden[-1]))
         features = self.tanh(self.fc2(features))
         features = self.tanh(self.fc3(features))
-        return features, hiddenState
+        return features, hiddenState  # bug, but correct
 
     def initHidden(self, batchSize=1):
         # reset hidden states

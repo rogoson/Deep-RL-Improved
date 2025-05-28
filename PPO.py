@@ -283,7 +283,7 @@ class PPOAgent:
     def store(self, state, action, probabilities, valuations, reward, done):
         self.memory.store(state, action, probabilities, valuations, reward, done)
 
-    def train(self, nextObs):
+    def train(self, nextObs, criticHandC):
         stateArr, actionArr, oldProbArr, valsArr, rewardArr, donesArr, batches = (
             self.memory.generateBatches()
         )
@@ -294,7 +294,7 @@ class PPOAgent:
             with torch.no_grad():
                 finalFeatures, _ = self.featureExtractor(nextObs)
                 finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
-                finalValuation, _ = self.critic(finalFeatures)
+                finalValuation, _ = self.critic(finalFeatures, criticHandC)
                 finalValuation = finalValuation.squeeze(0).detach()
         else:  # - equivalently, nextObs is none if this is the case, since the next state simply cannot be computed
             finalValuation = torch.tensor([0.0], device=device)

@@ -9,6 +9,7 @@ LOGGING_MARKET_DATA = (
 )
 LOGGING_CVAR_REWARD = False
 LOGGING_LOG_REWARD = False
+LOGGING_DSR_REWARD = False
 
 
 class TimeSeriesEnvironment(gym.Env):
@@ -205,6 +206,8 @@ class TimeSeriesEnvironment(gym.Env):
         :return: The logarithmic reward.
         return ln(P_t / P_t-1) = ln(1 + r)
         """
+        scaling = 1000
+        scaleReward = False
         if LOGGING_LOG_REWARD:
             print("+" * 50)
             print(
@@ -213,12 +216,30 @@ class TimeSeriesEnvironment(gym.Env):
             print(
                 f"Log Reward = ln({mostRecentPortfolioValue} / {previousPortfolioValue}) = {np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
+            print(
+                f"Scaled Log Reward ({scaling}x) = {scaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
+            )
             print("+" * 50)
-        return (
+        actualReward = (
             np.log(mostRecentPortfolioValue / previousPortfolioValue)
             if previousPortfolioValue is not None
             else 0.0
         )
+        # """
+        # TEMPORARY FIX: Using known working function until i can get the other one working. Smaller rewards = smaller actor loss = slower learning.
+        # """
+        # logarithmOfNumericalReturn = np.sign(
+        #     mostRecentPortfolioValue - previousPortfolioValue
+        # ) * np.log1p(abs(mostRecentPortfolioValue - previousPortfolioValue))
+
+        # print(
+        #     "Logarithm of Numerical Return = ",
+        #     logarithmOfNumericalReturn,
+        #     "Return = ",
+        #     mostRecentPortfolioValue - previousPortfolioValue,
+        # )
+
+        return scaling * actualReward if scaleReward else actualReward
 
     def calculateDifferentialSharpeRatio(self, currentReturn):
         """
@@ -227,26 +248,47 @@ class TimeSeriesEnvironment(gym.Env):
             https://papers.nips.cc/paper_files/paper/1998/file/4e6cd95227cb0c280e99a195be5f6615-Paper.pdf
         The relevant equations are found on page 3.
         """
+        # initialisation
         if self.meanReturn is None:
             self.meanReturn = currentReturn
             self.meanSquaredReturn = currentReturn**2
             return 0.0
 
+        if LOGGING_DSR_REWARD:
+            print("^" * 50)
+            print(
+                f"Calculating Differential Sharpe Ratio with currentReturn = {currentReturn}"
+            )
+        # A_t-1
         prevMeanReturn = self.meanReturn
+
+        # B_t-1
         prevMeanSquaredReturn = self.meanSquaredReturn
 
+        # change in each - just that delta
         deltaMean = currentReturn - prevMeanReturn
         deltaSquared = currentReturn**2 - prevMeanSquaredReturn
+
+        # A_t, B_t
         self.meanReturn += self.decayRate * deltaMean
         self.meanSquaredReturn += self.decayRate * deltaSquared
 
+        # denominator, straighforward
         denom = (prevMeanSquaredReturn - prevMeanReturn**2) ** 1.5
         if denom == 0:
             return 0.0
+
+        # numerator, straightforward
         numerator = (
             prevMeanSquaredReturn * deltaMean - 0.5 * prevMeanReturn * deltaSquared
         )
         differentialSharpeRatio = numerator / denom
+
+        if LOGGING_DSR_REWARD:
+            print(f"Denominator = {denom}, Numerator = {numerator}")
+            print(f"Differential Sharpe Ratio = {numerator / denom}")
+            print("^" * 50)
+
         return differentialSharpeRatio
 
     def getCVaRReward(self, r, useCVaR=True):
