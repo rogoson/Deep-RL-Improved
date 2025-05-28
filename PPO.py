@@ -309,21 +309,20 @@ class PPOAgent:
         advantage = torch.zeros(len(rewardArr), dtype=torch.float32, device=device)
 
         # TRUNCATED Generalized advantage estimation (GAE) calculation
-        for t in range(len(rewardArr)):  # needs to loop to the end  - first fix
-            discount = 1.0
-            aT = 0.0
-            for k in range(t, len(rewardArr)):  # needs to loop to the end - second fix
-                # Stop advantage propagation if episode ended
-                # if k > t and donesArr[k - 1].item(): # episodic distinctions removed for now
-                #     break  # Exit inner loop at episode boundary
-                delta = (
-                    rewardArr[k]
-                    + self.gamma * values[k + 1] * (1 - donesArr[k].item())
-                    - values[k]
-                )
-                aT += discount * delta
-                discount *= self.gamma * self.gaeLambda
-            advantage[t] = aT
+        # delta = td_error
+        # advantage estimation inspired by that found on: https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
+        lastgaelam = 0
+
+        for t in reversed(range(len(rewardArr))):
+            nextnonterminal = (
+                1 - donesArr[t].item()
+            )  # Whether next state is non-terminal - accounts for episode distinctions
+            nextvalue = values[t + 1]
+
+            delta = rewardArr[t] + self.gamma * nextvalue * nextnonterminal - values[t]
+            advantage[t] = lastgaelam = (
+                delta + self.gamma * self.gaeLambda * nextnonterminal * lastgaelam
+            )
 
         for batch in batches:
             states = stateArr[batch]
