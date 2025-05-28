@@ -4,7 +4,7 @@
 
 - **Day 1:** Get new financial data and clean up indicators - _Done_
 - **Day 2:** Clean up data and normalisation method - _Done_
-- **Day 3:** Clean up formulas (_reward functions_).
+- **Day 3:** Clean up formulas (_reward functions_). - _Done_
 - **Day 4:** Re-scale log reward, comment DSR.
 - **Day 5-6:** Clean up algorithm training. Bootstrapping, hidden states, log prob? etc.
 - **Day 7** Implement Tests/Logs for _Everything_.
