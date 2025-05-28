@@ -215,6 +215,7 @@ class PPOAgent:
             stateDim=nonFeatureStateDim,
             actionDim=actions_n,
             device=device,
+            hiddenAndCellSize=lstmHiddenSize,
         )
         self.learn_step_count = 0
         self.time_step = 0
@@ -280,13 +281,29 @@ class PPOAgent:
         else:
             return action, probabilities, criticValuation
 
-    def store(self, state, action, probabilities, valuations, reward, done):
-        self.memory.store(state, action, probabilities, valuations, reward, done)
+    def store(
+        self, state, action, probabilities, valuations, reward, done, hiddenStates
+    ):
+        self.memory.store(
+            state, action, probabilities, valuations, reward, done, hiddenStates
+        )
 
     def train(self, nextObs, criticHandC):
-        stateArr, actionArr, oldProbArr, valsArr, rewardArr, donesArr, batches = (
-            self.memory.generateBatches()
-        )
+        (
+            stateArr,
+            actionArr,
+            oldProbArr,
+            valsArr,
+            rewardArr,
+            donesArr,
+            actorH,
+            actorC,
+            criticH,
+            criticC,
+            featureH,  # unused
+            featureC,  # unused
+            batches,
+        ) = self.memory.generateBatches()
 
         # append 0 to the end of the valuation array if terminal state else next state valuation
         # bootstrapping - need to generate valuation for the last state
@@ -325,6 +342,14 @@ class PPOAgent:
             )
 
         for batch in batches:
+            actorHidden = (
+                actorH[batch].unsqueeze(0),
+                actorC[batch].unsqueeze(0),
+            )
+            criticHidden = (
+                criticH[batch].unsqueeze(0),
+                criticC[batch].unsqueeze(0),
+            )
             states = stateArr[batch]
             actions = actionArr[batch]
             oldProbs = oldProbArr[batch].squeeze()
@@ -339,13 +364,16 @@ class PPOAgent:
             """
             Much of this follows the same logic as Phil Tabor's PPO implementation:
             """
-            actorDist, _ = self.actor(features)
-            criticOut, _ = self.critic(features)
+            actorDist, _ = self.actor(features, actorHidden)
+            criticOut, _ = self.critic(features, criticHidden)
+
             criticOut = criticOut.squeeze(
                 -1
             )  # now required for possible 1 - length batch
 
-            newProbs = actorDist.log_prob(actions)
+            newProbs = actorDist.log_prob(
+                actions
+            )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
 
             probRatio = torch.exp(newProbs - oldProbs)
             weightedProbs = adv * probRatio
