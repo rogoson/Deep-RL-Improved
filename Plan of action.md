@@ -5,13 +5,14 @@
 - **Day 1:** Get new financial data and clean up indicators - _Done_
 - **Day 2:** Clean up data and normalisation method - _Done_
 - **Day 3:** Clean up formulas (_reward functions_). - _Done_
-- **Day 4:** Re-scale log reward, comment DSR.
-- **Day 5-6:** Clean up algorithm training. Bootstrapping, hidden states, log prob? etc.
+- **Day 4:** Re-scale log reward, comment DSR. - _Done_
+- **Day 5:** Clean up algorithm training. - GAE - _Done_ - Bootstrapping - _Done_ - hidden states, - _Done_ - log prob - Entropy loss may help (distribution is peaked). - _Done_
+- **Day 6:** Test Entropy - Test Advantage normalisation for small rewards. Neither worked, the entropy converges
 - **Day 7** Implement Tests/Logs for _Everything_.
 
 ## Second Week
 
-- **Day 1:** Check all work done so far
+- **Day 1:** Check all work done so far.
 - **Day 2-3:** Redo Introduction, Literature Review
 - **Day 4-5:** Write/Rewrite Methodology section
 - **Day 6-7:** _Buffer_ (catch up on any work, verify algorithm (_recurrent PPO_) methodology)
