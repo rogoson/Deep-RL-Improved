@@ -36,7 +36,7 @@ device = torch.device("cpu")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
 USE_ENTROPY = True  # whether to use entropy in the loss function
-NORMALIZE_ADVANTAGES = False
+NORMALIZE_ADVANTAGES = True
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
