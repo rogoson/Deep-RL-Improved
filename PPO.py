@@ -35,6 +35,8 @@ from torch.optim import Adam
 device = torch.device("cpu")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
+USE_ENTROPY = True  # whether to use entropy in the loss function
+NORMALIZE_ADVANTAGES = False
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
@@ -195,6 +197,7 @@ class PPOAgent:
         featureExtractor=None,
         nonFeatureStateDim=None,
         maxSize=None,
+        entropyCoefficient=0.01,
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -221,6 +224,7 @@ class PPOAgent:
         self.time_step = 0
         self.riskAversion = riskAversion
         self.featureExtractor = featureExtractor.to(device)
+        self.entropyCoefficient = entropyCoefficient
 
         self.actor = ActorNetwork(
             self.fc1_n,
@@ -340,7 +344,6 @@ class PPOAgent:
             advantage[t] = lastgaelam = (
                 delta + self.gamma * self.gaeLambda * nextnonterminal * lastgaelam
             )
-
         for batch in batches:
             actorHidden = (
                 actorH[batch].unsqueeze(0),
@@ -367,28 +370,40 @@ class PPOAgent:
             actorDist, _ = self.actor(features, actorHidden)
             criticOut, _ = self.critic(features, criticHidden)
 
-            criticOut = criticOut.squeeze(
-                -1
-            )  # now required for possible 1 - length batch
+            criticOut = criticOut.squeeze(-1)  # that was false
 
             newProbs = actorDist.log_prob(
                 actions
             )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
 
+            if USE_ENTROPY:
+                # encourage exploration by adding entropy to the loss
+                entropy = actorDist.entropy().mean()
+            else:
+                entropy = torch.tensor(0.0, device=device)
+
+            # robbed from blog track also, should help with stability
+            if NORMALIZE_ADVANTAGES:
+                # Normalize advantages to have mean 0 and std 1
+                normalisedAdv = (adv - adv.mean()) / (adv.std() + 1e-8)
+            else:
+                normalisedAdv = adv
+
             probRatio = torch.exp(newProbs - oldProbs)
-            weightedProbs = adv * probRatio
-            clippedWeightedProbs = adv * torch.clamp(
+            weightedProbs = normalisedAdv * probRatio
+            clippedWeightedProbs = normalisedAdv * torch.clamp(
                 probRatio, 1 - self.policyClip, 1 + self.policyClip
             )
             actorLoss = -torch.min(weightedProbs, clippedWeightedProbs).mean()
 
+            # Use the original (unnormalized) advantages to compute returns
             returns = adv + oldVals
             try:
                 criticLoss = F.mse_loss(criticOut, returns)
             except UserWarning as e:
                 raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
-            totalLoss = actorLoss + 0.5 * criticLoss
+            totalLoss = actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
 
             self.optimizer.zero_grad()
             totalLoss.backward()
