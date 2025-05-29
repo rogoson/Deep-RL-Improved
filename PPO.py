@@ -295,132 +295,137 @@ class PPOAgent:
         )
 
     def train(self, nextObs, hAndC):
-        (
-            stateArr,
-            actionArr,
-            oldProbArr,
-            valsArr,
-            rewardArr,
-            donesArr,
-            actorH,
-            actorC,
-            criticH,
-            criticC,
-            featureH,  # unused
-            featureC,  # unused
-            batches,
-        ) = self.memory.generateBatches()
+        for _ in range(self.epochs):  # not sure when i removed this
+            (
+                stateArr,
+                actionArr,
+                oldProbArr,
+                valsArr,
+                rewardArr,
+                donesArr,
+                actorH,
+                actorC,
+                criticH,
+                criticC,
+                featureH,  # unused
+                featureC,  # unused
+                batches,
+            ) = self.memory.generateBatches()
 
-        # append 0 to the end of the valuation array if terminal state else next state valuation
-        # bootstrapping - need to generate valuation for the last state
-        if not donesArr[-1] and nextObs is not None:  # if not terminal at the end
-            with torch.no_grad():
-                finalFeatures, _ = self.featureExtractor(nextObs, hAndC["feature"])
-                finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
-                finalValuation, _ = self.critic(finalFeatures, hAndC["critic"])
-                finalValuation = finalValuation.squeeze(0).detach()
-        else:  # - equivalently, nextObs is none if this is the case, since the next state simply cannot be computed
-            finalValuation = torch.tensor([0.0], device=device)
+            # append 0 to the end of the valuation array if terminal state else next state valuation
+            # bootstrapping - need to generate valuation for the last state
+            if not donesArr[-1] and nextObs is not None:  # if not terminal at the end
+                with torch.no_grad():
+                    finalFeatures, _ = self.featureExtractor(nextObs, hAndC["feature"])
+                    finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
+                    finalValuation, _ = self.critic(finalFeatures, hAndC["critic"])
+                    finalValuation = finalValuation.squeeze(0).detach()
+            else:  # - equivalently, nextObs is none if this is the case, since the next state simply cannot be computed
+                finalValuation = torch.tensor([0.0], device=device)
 
-        # add it to the end
-        values = valsArr.squeeze().detach()
-        try:
-            values = torch.cat([values, finalValuation])
-        except RuntimeError:
-            raise ValueError("Values and finalValuation could not be concatenated.")
-
-        advantage = torch.zeros(len(rewardArr), dtype=torch.float32, device=device)
-
-        # TRUNCATED Generalized advantage estimation (GAE) calculation
-        # delta = td_error
-        # advantage estimation inspired by that found on: https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
-        lastgaelam = 0
-
-        for t in reversed(range(len(rewardArr))):
-            nextnonterminal = (
-                1 - donesArr[t].item()
-            )  # Whether next state is non-terminal - accounts for episode distinctions
-            nextvalue = values[t + 1]
-
-            delta = rewardArr[t] + self.gamma * nextvalue * nextnonterminal - values[t]
-            advantage[t] = lastgaelam = (
-                delta + self.gamma * self.gaeLambda * nextnonterminal * lastgaelam
-            )
-        for batch in batches:
-            actorHidden = (
-                actorH[batch].unsqueeze(0),
-                actorC[batch].unsqueeze(0),
-            )
-            criticHidden = (
-                criticH[batch].unsqueeze(0),
-                criticC[batch].unsqueeze(0),
-            )
-            featureHidden = (
-                featureH[batch].unsqueeze(0),
-                featureC[batch].unsqueeze(0),
-            )
-
-            states = stateArr[batch]
-            actions = actionArr[batch]
-            oldProbs = oldProbArr[batch].squeeze()
-            adv = advantage[batch].detach()
-            oldVals = values[batch]
-
-            # Recompute featuers to ensure that actor and critic are always processing off
-            # up-to-date representations
-            features, _ = self.featureExtractor(states, featureHidden)
-            features = features.unsqueeze(1)  # crtical to be processed as batch
-
-            """
-            Much of this follows the same logic as Phil Tabor's PPO implementation:
-            """
-            actorDist, _ = self.actor(features, actorHidden)
-            criticOut, _ = self.critic(features, criticHidden)
-
-            criticOut = criticOut.squeeze(-1)  # that was false
-
-            newProbs = actorDist.log_prob(
-                actions
-            )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
-
-            if USE_ENTROPY:
-                # encourage exploration by adding entropy to the loss
-                entropy = actorDist.entropy().mean()
-            else:
-                entropy = torch.tensor(0.0, device=device)
-
-            # robbed from blog track also, should help with stability
-            if NORMALIZE_ADVANTAGES:
-                # Normalize advantages to have mean 0 and std 1
-                normalisedAdv = (adv - adv.mean()) / (adv.std() + 1e-8)
-            else:
-                normalisedAdv = adv
-
-            probRatio = torch.exp(newProbs - oldProbs)
-            weightedProbs = normalisedAdv * probRatio
-            clippedWeightedProbs = normalisedAdv * torch.clamp(
-                probRatio, 1 - self.policyClip, 1 + self.policyClip
-            )
-            actorLoss = -torch.min(weightedProbs, clippedWeightedProbs).mean()
-
-            # Use the original (unnormalized) advantages to compute returns
-            returns = adv + oldVals
+            # add it to the end
+            values = valsArr.squeeze().detach()
             try:
-                criticLoss = F.mse_loss(criticOut, returns)
-            except UserWarning as e:
-                raise RuntimeError(f"Shape mismatch warning encountered: {e}")
+                values = torch.cat([values, finalValuation])
+            except RuntimeError:
+                raise ValueError("Values and finalValuation could not be concatenated.")
 
-            totalLoss = actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
+            advantage = torch.zeros(len(rewardArr), dtype=torch.float32, device=device)
 
-            self.entrs.append(entropy.item())
+            # TRUNCATED Generalized advantage estimation (GAE) calculation
+            # delta = td_error
+            # advantage estimation inspired by that found on: https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
+            lastgaelam = 0
 
-            self.optimizer.zero_grad()
-            totalLoss.backward()
-            # Gradient Clipping - same as Zou et al. (2024)
-            torch.nn.utils.clip_grad_norm_(
-                self.optimizer.param_groups[0]["params"], max_norm=0.5
-            )
-            self.optimizer.step()
+            for t in reversed(range(len(rewardArr))):
+                nextnonterminal = (
+                    1 - donesArr[t].item()
+                )  # Whether next state is non-terminal - accounts for episode distinctions
+                nextvalue = values[t + 1]
+
+                delta = (
+                    rewardArr[t] + self.gamma * nextvalue * nextnonterminal - values[t]
+                )
+                advantage[t] = lastgaelam = (
+                    delta + self.gamma * self.gaeLambda * nextnonterminal * lastgaelam
+                )
+            for batch in batches:
+                actorHidden = (
+                    actorH[batch].unsqueeze(0),
+                    actorC[batch].unsqueeze(0),
+                )
+                criticHidden = (
+                    criticH[batch].unsqueeze(0),
+                    criticC[batch].unsqueeze(0),
+                )
+                featureHidden = (
+                    featureH[batch].unsqueeze(0),
+                    featureC[batch].unsqueeze(0),
+                )
+
+                states = stateArr[batch]
+                actions = actionArr[batch]
+                oldProbs = oldProbArr[batch].squeeze()
+                adv = advantage[batch].detach()
+                oldVals = values[batch]
+
+                # Recompute featuers to ensure that actor and critic are always processing off
+                # up-to-date representations
+                features, _ = self.featureExtractor(states, featureHidden)
+                features = features.unsqueeze(1)  # crtical to be processed as batch
+
+                """
+                Much of this follows the same logic as Phil Tabor's PPO implementation:
+                """
+                actorDist, _ = self.actor(features, actorHidden)
+                criticOut, _ = self.critic(features, criticHidden)
+
+                criticOut = criticOut.squeeze(-1)  # that was false
+
+                newProbs = actorDist.log_prob(
+                    actions
+                )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
+
+                if USE_ENTROPY:
+                    # encourage exploration by adding entropy to the loss
+                    entropy = actorDist.entropy().mean()
+                else:
+                    entropy = torch.tensor(0.0, device=device)
+
+                # robbed from blog track also, should help with stability
+                if NORMALIZE_ADVANTAGES:
+                    # Normalize advantages to have mean 0 and std 1
+                    normalisedAdv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                else:
+                    normalisedAdv = adv
+
+                probRatio = torch.exp(newProbs - oldProbs)
+                weightedProbs = normalisedAdv * probRatio
+                clippedWeightedProbs = normalisedAdv * torch.clamp(
+                    probRatio, 1 - self.policyClip, 1 + self.policyClip
+                )
+                actorLoss = -torch.min(weightedProbs, clippedWeightedProbs).mean()
+
+                # Use the original (unnormalized) advantages to compute returns
+                returns = adv + oldVals
+                try:
+                    criticLoss = F.mse_loss(criticOut, returns)
+                except UserWarning as e:
+                    raise RuntimeError(f"Shape mismatch warning encountered: {e}")
+
+                totalLoss = (
+                    actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
+                )
+
+                self.entrs.append(entropy.item())
+
+                self.optimizer.zero_grad()
+                totalLoss.backward()
+                # Gradient Clipping - same as Zou et al. (2024)
+                torch.nn.utils.clip_grad_norm_(
+                    self.optimizer.param_groups[0]["params"], max_norm=0.5
+                )
+                self.optimizer.step()
 
         self.memory.clear()
 
