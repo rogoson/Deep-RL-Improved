@@ -259,6 +259,8 @@ class PPOAgent:
             lr=self.alpha,
         )
 
+        self.entrs = []
+
     def select_action(
         self, observation, hiddenAndCellStates, sampling=True, returnHidden=False
     ):
@@ -292,7 +294,7 @@ class PPOAgent:
             state, action, probabilities, valuations, reward, done, hiddenStates
         )
 
-    def train(self, nextObs, criticHandC):
+    def train(self, nextObs, hAndC):
         (
             stateArr,
             actionArr,
@@ -313,9 +315,9 @@ class PPOAgent:
         # bootstrapping - need to generate valuation for the last state
         if not donesArr[-1] and nextObs is not None:  # if not terminal at the end
             with torch.no_grad():
-                finalFeatures, _ = self.featureExtractor(nextObs)
+                finalFeatures, _ = self.featureExtractor(nextObs, hAndC["feature"])
                 finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
-                finalValuation, _ = self.critic(finalFeatures, criticHandC)
+                finalValuation, _ = self.critic(finalFeatures, hAndC["critic"])
                 finalValuation = finalValuation.squeeze(0).detach()
         else:  # - equivalently, nextObs is none if this is the case, since the next state simply cannot be computed
             finalValuation = torch.tensor([0.0], device=device)
@@ -353,6 +355,11 @@ class PPOAgent:
                 criticH[batch].unsqueeze(0),
                 criticC[batch].unsqueeze(0),
             )
+            featureHidden = (
+                featureH[batch].unsqueeze(0),
+                featureC[batch].unsqueeze(0),
+            )
+
             states = stateArr[batch]
             actions = actionArr[batch]
             oldProbs = oldProbArr[batch].squeeze()
@@ -361,7 +368,7 @@ class PPOAgent:
 
             # Recompute featuers to ensure that actor and critic are always processing off
             # up-to-date representations
-            features, _ = self.featureExtractor(states)
+            features, _ = self.featureExtractor(states, featureHidden)
             features = features.unsqueeze(1)  # crtical to be processed as batch
 
             """
@@ -404,6 +411,8 @@ class PPOAgent:
                 raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
             totalLoss = actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
+
+            self.entrs.append(entropy.item())
 
             self.optimizer.zero_grad()
             totalLoss.backward()

@@ -10,6 +10,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 _SAVE_SUFFIX = "_lstm"
 
 device = torch.device("cpu")
+RETURN_HIDDEN_STATE = False
 
 
 class LstmFeatureExtractor(BaseFeaturesExtractor):
@@ -60,11 +61,11 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         """
         if hiddenState is None:
             hiddenState = self.initHidden(batchSize=x.size(0))
-        _, (hidden, _) = self.lstm(x, hiddenState)
+        _, (hidden, cell) = self.lstm(x, hiddenState)
         features = self.tanh(self.fc1(hidden[-1]))
         features = self.tanh(self.fc2(features))
         features = self.tanh(self.fc3(features))
-        return features, hiddenState  # bug, but correct
+        return features, ((hidden, cell) if RETURN_HIDDEN_STATE else hiddenState)
 
     def initHidden(self, batchSize=1):
         # reset hidden states
