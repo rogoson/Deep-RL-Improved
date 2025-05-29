@@ -6,9 +6,18 @@
 - **Day 2:** Clean up data and normalisation method - _Done_
 - **Day 3:** Clean up formulas (_reward functions_). - _Done_
 - **Day 4:** Re-scale log reward, comment DSR. - _Done_
-- **Day 5:** Clean up algorithm training. - GAE - _Done_ - Bootstrapping - _Done_ - hidden states, - _Done_ - log prob - Entropy loss may help (distribution is peaked). - _Done_
-- **Day 6:** Test Entropy - Test Advantage normalisation for small rewards. Neither worked, the entropy converges
-- **Day 7** Implement Tests/Logs for _Everything_.
+- **Day 5:** Clean up algorithm training.
+  1. GAE - _Done_
+  2. Bootstrapping - _Done_
+  3. Hidden states - _Done_
+  4. Log prob - Entropy loss may help (distribution is peaked). - _Done_
+- **Day 6:**
+  - Test Entropy - _Done_
+  - Test Advantage normalisation for small rewards. Neither worked, the entropy converges - _Done_
+- **Day 7:** Implement Tests/Logs for _Everything_.
+  1. WeightsAndBiases Setup
+  2. Write extra verification tests
+  3. Learning Curves - you'll need to plot learning curves
 
 ## Second Week
 
