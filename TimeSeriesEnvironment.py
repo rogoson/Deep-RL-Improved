@@ -207,7 +207,7 @@ class TimeSeriesEnvironment(gym.Env):
         return ln(P_t / P_t-1) = ln(1 + r)
         """
         scaling = 1000
-        scaleReward = False
+        scaleReward = True
         if LOGGING_LOG_REWARD:
             print("+" * 50)
             print(
