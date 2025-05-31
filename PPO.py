@@ -8,6 +8,7 @@ I adapted some code used for our TD3 implementation where possible and changed t
 
 import gymnasium as gym
 import numpy as np
+import wandb
 import os
 import torch
 import torch.nn as nn
@@ -198,6 +199,7 @@ class PPOAgent:
         nonFeatureStateDim=None,
         maxSize=None,
         entropyCoefficient=0.01,
+        rewardFunction=None,
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -225,6 +227,7 @@ class PPOAgent:
         self.riskAversion = riskAversion
         self.featureExtractor = featureExtractor.to(device)
         self.entropyCoefficient = entropyCoefficient
+        self.rewardFunction = rewardFunction
 
         self.actor = ActorNetwork(
             self.fc1_n,
@@ -258,8 +261,6 @@ class PPOAgent:
             ),
             lr=self.alpha,
         )
-
-        self.entrs = []
 
     def select_action(
         self, observation, hiddenAndCellStates, sampling=True, returnHidden=False
@@ -417,8 +418,6 @@ class PPOAgent:
                     actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
                 )
 
-                self.entrs.append(entropy.item())
-
                 self.optimizer.zero_grad()
                 totalLoss.backward()
                 # Gradient Clipping - same as Zou et al. (2024)
@@ -426,6 +425,19 @@ class PPOAgent:
                     self.optimizer.param_groups[0]["params"], max_norm=0.5
                 )
                 self.optimizer.step()
+
+        wandb.log(
+            {
+                "actor_loss": actorLoss.item(),
+                "critic_loss": criticLoss.item(),
+                "entropy": entropy.item() if USE_ENTROPY else 0.0,
+                "total_loss": totalLoss.item(),
+                "advantage_mean": normalisedAdv.mean().item(),
+                "advantage_std": normalisedAdv.std().item(),
+                "returns_mean": returns.mean().item(),
+                "actor_prob_ratio_mean": probRatio.mean().item(),
+            }
+        )
 
         self.memory.clear()
 
