@@ -15,14 +15,20 @@
   - Test Entropy - _Done_
   - Test Advantage normalisation for small rewards. Neither worked, the entropy converges - _Done_
 - **Day 7:** Implement Tests/Logs for _Everything_.
-  1. WeightsAndBiases Setup
-  2. Write extra verification tests
-  3. Learning Curves - you'll need to plot learning curves
+  1. WeightsAndBiases Setup - Good reason to think the issue was the normalisation. It literally turns all the data into noise and makes the problem virtually unsolvable. - _Partly Done, needs doing for other (non-noise) experiments_
 
 ## Second Week
 
-- **Day 1:** Check all work done so far.
-- **Day 2-3:** Redo Introduction, Literature Review
+- **Day 1:**
+  1. Check all work done so far. Write extra verification tests. Add flags (to make stuff readable)
+  2. Ideally be able to visualise everything if possible.
+  3. Figure out why there is variation between runs even with seeds. Something is wrong (maybe try offline)?
+- **Day 2:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
+  1. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
+  2. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
+  - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.
+  3. Learning Curves - you'll need to plot learning curves
+- **Day 3:** Redo Introduction, Literature Review
 - **Day 4-5:** Write/Rewrite Methodology section
 - **Day 6-7:** _Buffer_ (catch up on any work, verify algorithm (_recurrent PPO_) methodology)
 

@@ -10,6 +10,7 @@ LOGGING_MARKET_DATA = (
 LOGGING_CVAR_REWARD = False
 LOGGING_LOG_REWARD = False
 LOGGING_DSR_REWARD = False
+SCALE_LOG_REWARD = True
 
 
 class TimeSeriesEnvironment(gym.Env):
@@ -207,7 +208,6 @@ class TimeSeriesEnvironment(gym.Env):
         return ln(P_t / P_t-1) = ln(1 + r)
         """
         scaling = 1000
-        scaleReward = True
         if LOGGING_LOG_REWARD:
             print("+" * 50)
             print(
@@ -225,21 +225,8 @@ class TimeSeriesEnvironment(gym.Env):
             if previousPortfolioValue is not None
             else 0.0
         )
-        # """
-        # TEMPORARY FIX: Using known working function until i can get the other one working. Smaller rewards = smaller actor loss = slower learning.
-        # """
-        # logarithmOfNumericalReturn = np.sign(
-        #     mostRecentPortfolioValue - previousPortfolioValue
-        # ) * np.log1p(abs(mostRecentPortfolioValue - previousPortfolioValue))
 
-        # print(
-        #     "Logarithm of Numerical Return = ",
-        #     logarithmOfNumericalReturn,
-        #     "Return = ",
-        #     mostRecentPortfolioValue - previousPortfolioValue,
-        # )
-
-        return scaling * actualReward if scaleReward else actualReward
+        return scaling * actualReward if SCALE_LOG_REWARD else actualReward
 
     def calculateDifferentialSharpeRatio(self, currentReturn):
         """
