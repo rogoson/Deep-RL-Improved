@@ -20,14 +20,16 @@
 ## Second Week
 
 - **Day 1:**
-  1. Check all work done so far. Write extra verification tests. Add flags (to make stuff readable)
-  2. Ideally be able to visualise everything if possible.
-  3. Figure out why there is variation between runs even with seeds. Something is wrong (maybe try offline)?
+  1. Check all work done so far. Write extra verification tests. Add flags (to make stuff readable) - _Done_
+  2. Ideally be able to visualise everything if possible. - _Done_
+  3. Figure out why there is variation between runs even with seeds. Something is wrong (maybe try offline)? - wasn't seeding initialisation. - _Done_
 - **Day 2:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
-  1. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
-  2. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
+  1. Watch
+  2. Rename layers for wandb
+  3. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
+  4. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
   - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.
-  3. Learning Curves - you'll need to plot learning curves
+  5. Learning Curves - you'll need to plot learning curves
 - **Day 3:** Redo Introduction, Literature Review
 - **Day 4-5:** Write/Rewrite Methodology section
 - **Day 6-7:** _Buffer_ (catch up on any work, verify algorithm (_recurrent PPO_) methodology)
