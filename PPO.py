@@ -8,6 +8,8 @@ I adapted some code used for our TD3 implementation where possible and changed t
 
 import gymnasium as gym
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import wandb
 import os
 import torch
@@ -38,6 +40,9 @@ _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
 USE_ENTROPY = True  # whether to use entropy in the loss function
 NORMALIZE_ADVANTAGES = True
+LOG_CONCENTRATION_HEATMAP = (
+    False  # Depending on internet speed, this can make things MUCH slower
+)
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
@@ -438,7 +443,21 @@ class PPOAgent:
                 "actor_prob_ratio_mean": probRatio.mean().item(),
             }
         )
+        if LOG_CONCENTRATION_HEATMAP:
+            concentrations = actorDist.concentration.cpu().detach().numpy()
 
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(
+                concentrations, cmap="viridis", annot=True, fmt=".2f", linewidths=0.5
+            )
+            plt.xlabel("Concentration Parameter Index")
+            plt.ylabel("Distribution Index")
+            plt.title("Heatmap of Concentration Parameters")
+            plt.tight_layout()
+
+            # Log the heatmap image to wandb
+            wandb.log({"concentration_heatmap": wandb.Image(plt)})
+            plt.close()
         self.memory.clear()
 
     def save(self, save_dir: str):
