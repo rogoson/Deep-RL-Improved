@@ -38,10 +38,8 @@ from torch.optim import Adam
 device = torch.device("cpu")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
-USE_ENTROPY = True  # whether to use entropy in the loss function
-NORMALIZE_ADVANTAGES = True
 LOG_CONCENTRATION_HEATMAP = (
-    False  # Depending on internet speed, this can make things MUCH slower
+    True  # Depending on internet speed, this can make things MUCH slower
 )
 
 
@@ -205,6 +203,8 @@ class PPOAgent:
         maxSize=None,
         entropyCoefficient=0.01,
         rewardFunction=None,
+        normAdvantages=False,
+        useEntropy=False,
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -233,6 +233,8 @@ class PPOAgent:
         self.featureExtractor = featureExtractor.to(device)
         self.entropyCoefficient = entropyCoefficient
         self.rewardFunction = rewardFunction
+        self.normAdvantages = normAdvantages
+        self.useEntropy = useEntropy
 
         self.actor = ActorNetwork(
             self.fc1_n,
@@ -392,14 +394,14 @@ class PPOAgent:
                     actions
                 )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
 
-                if USE_ENTROPY:
+                if self.useEntropy:
                     # encourage exploration by adding entropy to the loss
                     entropy = actorDist.entropy().mean()
                 else:
                     entropy = torch.tensor(0.0, device=device)
 
                 # robbed from blog track also, should help with stability
-                if NORMALIZE_ADVANTAGES:
+                if self.normAdvantages:
                     # Normalize advantages to have mean 0 and std 1
                     normalisedAdv = (adv - adv.mean()) / (adv.std() + 1e-8)
                 else:
@@ -435,7 +437,7 @@ class PPOAgent:
             {
                 "actor_loss": actorLoss.item(),
                 "critic_loss": criticLoss.item(),
-                "entropy": entropy.item() if USE_ENTROPY else 0.0,
+                "entropy": entropy.item() if self.useEntropy else 0.0,
                 "total_loss": totalLoss.item(),
                 "advantage_mean": normalisedAdv.mean().item(),
                 "advantage_std": normalisedAdv.std().item(),

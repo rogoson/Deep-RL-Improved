@@ -10,7 +10,6 @@ LOGGING_MARKET_DATA = (
 LOGGING_CVAR_REWARD = False
 LOGGING_LOG_REWARD = False
 LOGGING_DSR_REWARD = False
-SCALE_LOG_REWARD = True
 
 
 class TimeSeriesEnvironment(gym.Env):
@@ -23,6 +22,7 @@ class TimeSeriesEnvironment(gym.Env):
         startCash,
         AGENT_RISK_AVERSION,
         transactionCost=0.001,
+        scaleLogReward=True,
     ):
 
         self.marketData = marketData  # Stores percentage price changes over time
@@ -44,6 +44,14 @@ class TimeSeriesEnvironment(gym.Env):
         self.PORTFOLIO_VALUES = [self.startCash]
         self.AGENT_RISK_AVERSION = AGENT_RISK_AVERSION
         self.isReady = False
+        self.scaleLogReward = (
+            scaleLogReward  # whether to scale the log reward by 1000 or not
+        )
+        self.logScaling = 1000
+        if self.scaleLogReward:
+            print(
+                f"WARNING: Scaling Log Reward by {self.logScaling}x. This is to prevent the reward from being too small."
+            )
 
         self.CVaR = [0]
         self.maxAllocationChange = 1  # liquidigy parameter.
@@ -207,7 +215,6 @@ class TimeSeriesEnvironment(gym.Env):
         :return: The logarithmic reward.
         return ln(P_t / P_t-1) = ln(1 + r)
         """
-        scaling = 1000
         if LOGGING_LOG_REWARD:
             print("+" * 50)
             print(
@@ -217,7 +224,7 @@ class TimeSeriesEnvironment(gym.Env):
                 f"Log Reward = ln({mostRecentPortfolioValue} / {previousPortfolioValue}) = {np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
             print(
-                f"Scaled Log Reward ({scaling}x) = {scaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
+                f"Scaled Log Reward ({self.logScaling}x) = {self.logScaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
             print("+" * 50)
         actualReward = (
@@ -226,7 +233,7 @@ class TimeSeriesEnvironment(gym.Env):
             else 0.0
         )
 
-        return scaling * actualReward if SCALE_LOG_REWARD else actualReward
+        return self.logScaling * actualReward if self.scaleLogReward else actualReward
 
     def calculateDifferentialSharpeRatio(self, currentReturn):
         """
