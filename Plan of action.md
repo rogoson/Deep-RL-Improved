@@ -24,8 +24,8 @@
   2. Ideally be able to visualise everything if possible. - _Done_
   3. Figure out why there is variation between runs even with seeds. Something is wrong (maybe try offline)? - wasn't seeding initialisation. - _Done_
 - **Day 2:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
-  1. Watch
-  2. Rename layers for wandb
+  1. Watch - _Done_
+  2. Rename layers for wandb - _Done_
   3. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
   4. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
   - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.

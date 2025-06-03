@@ -78,15 +78,15 @@ class CriticNetwork(nn.Module):
 
         self.save_file_name = self.modelName + _SAVE_SUFFIX
         self.optimiser_save_file_name = self.modelName + _OPTIMISER_SAVE_SUFFIX
-        self.lstm = LSTM(
+        self.criticLstm = LSTM(
             input_size=self.state_n,
             hidden_size=lstmHiddenSize,
             num_layers=1,
             batch_first=True,
         )
-        self.fc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.fc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
-        self.fc3 = layerInit(Linear(self.fc2_n, 1))
+        self.criticFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
+        self.criticFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+        self.criticFc3 = layerInit(Linear(self.fc2_n, 1))
         self.tanh = nn.Tanh()
 
     def forward(self, state, hiddenState=None):
@@ -95,10 +95,10 @@ class CriticNetwork(nn.Module):
 
         if state.dim() == 2:
             state = state.unsqueeze(1)
-        lstmOut, (hidden, cell) = self.lstm(state, hiddenState)
-        valuation = self.tanh(self.fc1(hidden[-1]))
-        valuation = self.tanh(self.fc2(valuation))
-        valuation = self.fc3(valuation)
+        lstmOut, (hidden, cell) = self.criticLstm(state, hiddenState)
+        valuation = self.tanh(self.criticFc1(hidden[-1]))
+        valuation = self.tanh(self.criticFc2(valuation))
+        valuation = self.criticFc3(valuation)
         return valuation, (hidden, cell)
 
     def initHidden(self, batchSize=1):
@@ -135,16 +135,16 @@ class ActorNetwork(nn.Module):
         self.optimiser_save_file_name = self.modelName + _OPTIMISER_SAVE_SUFFIX
 
         # Map state to action
-        self.lstm = LSTM(
+        self.actorLstm = LSTM(
             input_size=self.state_n,
             hidden_size=self.lstmHiddenSize,
             num_layers=1,
             batch_first=True,
         )
 
-        self.fc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.fc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
-        self.alphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.actorFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
+        self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+        self.dirichletAlphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
 
@@ -169,10 +169,10 @@ class ActorNetwork(nn.Module):
         if state.dim() == 2:
             state = state.unsqueeze(1)
 
-        lstmOut, (hidden, cell) = self.lstm(state, hiddenState)
-        x = self.relu(self.fc1(hidden[-1]))
-        x = self.relu(self.fc2(x))
-        alpha = F.softplus(self.alphaLayer(x)) + 1e-3
+        lstmOut, (hidden, cell) = self.actorLstm(state, hiddenState)
+        x = self.relu(self.actorFc1(hidden[-1]))
+        x = self.relu(self.actorFc2(x))
+        alpha = F.softplus(self.dirichletAlphaLayer(x)) + 1e-3
         dist = torch.distributions.Dirichlet(alpha)
         return dist, (hidden, cell)
 
