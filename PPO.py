@@ -39,7 +39,7 @@ device = torch.device("cpu")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
 LOG_CONCENTRATION_HEATMAP = (
-    True  # Depending on internet speed, this can make things MUCH slower
+    False  # Depending on internet speed, this can make things MUCH slower
 )
 
 
