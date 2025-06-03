@@ -40,15 +40,15 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         self.modelName = modelName
         self.save_file_name = self.modelName + _SAVE_SUFFIX
 
-        self.lstm = LSTM(
+        self.featureLSTM = LSTM(
             input_size=numFeatures,
             hidden_size=lstmHiddenSize,
             num_layers=1,
             batch_first=True,
         )
-        self.fc1 = Linear(lstmHiddenSize, lstmHiddenSize)
-        self.fc2 = Linear(lstmHiddenSize, lstmHiddenSize)
-        self.fc3 = Linear(lstmHiddenSize, lstmOutputSize)
+        self.featureExtractorfc1 = Linear(lstmHiddenSize, lstmHiddenSize)
+        self.featureExtractorfc2 = Linear(lstmHiddenSize, lstmHiddenSize)
+        self.featureExtractorfc3 = Linear(lstmHiddenSize, lstmOutputSize)
         self.tanh = Tanh()
 
     def forward(self, x, hiddenState=None):
@@ -61,10 +61,10 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         """
         if hiddenState is None:
             hiddenState = self.initHidden(batchSize=x.size(0))
-        _, (hidden, cell) = self.lstm(x, hiddenState)
-        features = self.tanh(self.fc1(hidden[-1]))
-        features = self.tanh(self.fc2(features))
-        features = self.tanh(self.fc3(features))
+        _, (hidden, cell) = self.featureLSTM(x, hiddenState)
+        features = self.tanh(self.featureExtractorfc1(hidden[-1]))
+        features = self.tanh(self.featureExtractorfc2(features))
+        features = self.tanh(self.featureExtractorfc3(features))
         return features, ((hidden, cell) if RETURN_HIDDEN_STATE else hiddenState)
 
     def initHidden(self, batchSize=1):
