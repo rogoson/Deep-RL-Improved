@@ -35,7 +35,7 @@ from torch.nn import (
 from torch.distributions import Dirichlet
 from torch.optim import Adam
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
 LOG_CONCENTRATION_HEATMAP = (

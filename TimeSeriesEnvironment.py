@@ -3,7 +3,7 @@ import gymnasium as gym
 import torch
 from gymnasium import spaces
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 LOGGING_MARKET_DATA = (
     False  # Set to True to enable logging_MARKET_DATA for debugging purposes
 )

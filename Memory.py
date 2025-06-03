@@ -1,6 +1,6 @@
 import torch
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 
 
 class Memory:
