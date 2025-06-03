@@ -26,10 +26,12 @@
 - **Day 2:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
   1. Watch - _Done_
   2. Rename layers for wandb - _Done_
-  3. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
-  4. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
+  3. Restore GPU usage - _Done_
+  4. Test PPOLSTM
+  5. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
+  6. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
   - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.
-  5. Learning Curves - you'll need to plot learning curves
+  7. Learning Curves - you'll need to plot learning curves
 - **Day 3:** Redo Introduction, Literature Review
 - **Day 4-5:** Write/Rewrite Methodology section
 - **Day 6-7:** _Buffer_ (catch up on any work, verify algorithm (_recurrent PPO_) methodology)

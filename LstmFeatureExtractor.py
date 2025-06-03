@@ -9,7 +9,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 _SAVE_SUFFIX = "_lstm"
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 RETURN_HIDDEN_STATE = False
 
 
