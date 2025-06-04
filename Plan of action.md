@@ -15,7 +15,7 @@
   - Test Entropy - _Done_
   - Test Advantage normalisation for small rewards. Neither worked, the entropy converges - _Done_
 - **Day 7:** Implement Tests/Logs for _Everything_.
-  1. WeightsAndBiases Setup - Good reason to think the issue was the normalisation. It literally turns all the data into noise and makes the problem virtually unsolvable. - _Partly Done, needs doing for other (non-noise) experiments_
+  1. WeightsAndBiases Setup - Good reason to think the issue was the normalisation (nope - lucky run used normalisation). It literally turns all the data into noise and makes the problem virtually unsolvable. - _Partly Done, needs doing for other (non-noise) experiments_
 
 ## Second Week
 
@@ -27,26 +27,33 @@
   1. Watch - _Done_
   2. Rename layers for wandb - _Done_
   3. Restore GPU usage - _Done_
-  4. Test PPOLSTM
-  5. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
-  6. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
+  4. Test PPOLSTM - _Failed_. No luck on a masked/unmasked pendulum with the full arch.
+- **Day 3:** Re-plan. Figure out how to package stuff - _Done_
+- **Day 4-5:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
+  1. Think about differential entropy. The max for k=25 is about -54.7. Lower alphas mean less lower (more negative) entropy, but higher alphas mean less variance. Adding entropy bonus makes values want to stay close to 1 (on average), but does that impede learning? Multiple signals, quite complicated.
+  2. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
+  3. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
   - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.
-  7. Learning Curves - you'll need to plot learning curves
-- **Day 3:** Redo Introduction, Literature Review
-- **Day 4-5:** Write/Rewrite Methodology section
-- **Day 6-7:** _Buffer_ (catch up on any work, verify algorithm (_recurrent PPO_) methodology)
+  4. Learning Curves - you'll need to plot learning curves
+  5. Try without feature extractor?
+- **Day 6:** Review Bugs file (categorize into severity) - include:
+  1. What it is
+  2. Impact
+  3. Whether it is fixed
+  4. What I learned?
+     Second - Review Marked-up diss
+- **Day 7:** Redo Introduction, Literature Review
 
 ## Third Week
 
-- **Day 1:** Review Bug File (maybe too harsh)
+- **Day 1:** Write/Rewrite Methodology section
 - **Day 2-3:** Rewrite experimental design
-- **Day 4-5:** Run noise testing, rest of experiments
+- **Day 4-5:** Run experiments
 - **Day 6-7:** Write results and conclusions
 
 ## Fourth Week
 
-- **Day 1:** Read through report - _introduction, literature review_
-- **Day 2:** Read through report - _methodology, Experimental design_
-- **Day 3:** Read through report - _experiments and conclusions_
-- **Day 4:** Read through report - _conclusions_
-- **Day 5-7:** _Buffer period_
+- **Day 1-3:** Read through report
+- **Day 4-7:**
+  1. Practice viva questions
+  2. Check how to diff code (new and old) using marketplace "Diff" thing
