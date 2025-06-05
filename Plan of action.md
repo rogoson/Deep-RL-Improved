@@ -29,13 +29,16 @@
   3. Restore GPU usage - _Done_
   4. Test PPOLSTM - _Failed_. No luck on a masked/unmasked pendulum with the full arch.
 - **Day 3:** Re-plan. Figure out how to package stuff - _Done_
-- **Day 4-5:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
-  1. Think about differential entropy. The max for k=25 is about -54.7. Lower alphas mean less lower (more negative) entropy, but higher alphas mean less variance. Adding entropy bonus makes values want to stay close to 1 (on average), but does that impede learning? Multiple signals, quite complicated.
-  2. It may be better to get rid of the hyperparameter sweep altogether. Just go straight for it?
-  3. Test Log-Scaled, DSR, Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
-  - Serious vanishing Gradient problems for unscaled reward. Take a look at gradients on noise run - nonexistent.
-  4. Learning Curves - you'll need to plot learning curves
-  5. Try without feature extractor?
+- **Day 4:** Restructure experimentation. Noise -> Hyper -> Testing doesn't really make sense.
+  1. It may be better to get rid of the hyperparameter sweep altogether. Yes. Vary reward hyperparameters - _Done_
+  2. Test Log-Scaled, DSR, Unscaled Log, CVaR - OFFLINE MODE IS FASTER PROBABLY
+  3. Learning Curves - you'll need to plot learning curves - _clearly_
+  4. Maybe try to fit a line for total reward compared to evaluation performances. - _no, time constraints_
+  5. Set hidden size to 512 for ensuing experiments. - _Done_
+- **Day 5:** Set up experiments
+  1. Validate that everything is set up correctly.
+  2. Ensure that you know what you want for each section.
+  3. Set up your experiments to run.
 - **Day 6:** Review Bugs file (categorize into severity) - include:
   1. What it is
   2. Impact

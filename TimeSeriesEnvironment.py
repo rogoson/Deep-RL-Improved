@@ -2,8 +2,12 @@ import numpy as np
 import gymnasium as gym
 import torch
 from gymnasium import spaces
+import warnings
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
+# Convert all UserWarnings into exceptions
+warnings.filterwarnings("error", category=RuntimeWarning)
+
 LOGGING_MARKET_DATA = (
     False  # Set to True to enable logging_MARKET_DATA for debugging purposes
 )
@@ -227,12 +231,17 @@ class TimeSeriesEnvironment(gym.Env):
                 f"Scaled Log Reward ({self.logScaling}x) = {self.logScaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
             print("+" * 50)
-        actualReward = (
-            np.log(mostRecentPortfolioValue / previousPortfolioValue)
-            if previousPortfolioValue is not None
-            else 0.0
-        )
-
+        actualReward = None
+        try:
+            actualReward = (
+                np.log(mostRecentPortfolioValue / previousPortfolioValue)
+                if previousPortfolioValue is not None
+                else 0.0
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Error calculating log reward: {e}. mostRecentPortfolioValue = {mostRecentPortfolioValue}, previousPortfolioValue = {previousPortfolioValue}"
+            )
         return self.logScaling * actualReward if self.scaleLogReward else actualReward
 
     def calculateDifferentialSharpeRatio(self, currentReturn):
@@ -301,9 +310,11 @@ class TimeSeriesEnvironment(gym.Env):
             if LOGGING_CVAR_REWARD:
                 print(f"Current CVaR = {currentCVaR}, Previous CVaR = {self.CVaR[-1]}")
             changeInCVaR = -(currentCVaR - self.CVaR[-1])
-            cVaRNum = np.sign(changeInCVaR) * (
-                np.log1p(np.abs(changeInCVaR))
-            )  # optional as to whether you want to normalise this or not
+            cVaRNum = (
+                changeInCVaR
+                / self.startCash
+                * (self.logScaling if self.scaleLogReward else 1)
+            )  # scaled to be on similar levels as scaled log reward - verify!
             if LOGGING_CVAR_REWARD:
                 print(f"Change in CVaR = {changeInCVaR}, Normalised = {cVaRNum}")
             riskPenalty = self.AGENT_RISK_AVERSION * cVaRNum

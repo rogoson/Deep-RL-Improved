@@ -32,7 +32,7 @@ from torch.nn import (
     Parameter,
     functional as F,
 )
-from torch.distributions import Dirichlet
+from torch.distributions import Dirichlet, Independent, Normal
 from torch.optim import Adam
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
@@ -123,6 +123,7 @@ class ActorNetwork(nn.Module):
         state_n: int,
         actions_n: int,
         modelName: str,
+        useDirichlet: bool = True,  # Whether to use Dirichlet or Mean/Std for actions
     ):
         super(ActorNetwork, self).__init__()
         self.fc1_n = fc1_n
@@ -131,6 +132,7 @@ class ActorNetwork(nn.Module):
         self.state_n = state_n
         self.actions_n = actions_n
         self.modelName = modelName
+        self.useDirichlet = useDirichlet
         self.save_file_name = self.modelName + _SAVE_SUFFIX
         self.optimiser_save_file_name = self.modelName + _OPTIMISER_SAVE_SUFFIX
 
@@ -144,7 +146,16 @@ class ActorNetwork(nn.Module):
 
         self.actorFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
         self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+
+        # For dirichlet
         self.dirichletAlphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+
+        # For Gaussian (following iclr blog track)
+        self.actorMeanLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.actorLogStd = Parameter(
+            torch.zeros(1, actions_n)
+        )  # learnable log standard deviation
+
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
 
@@ -172,8 +183,16 @@ class ActorNetwork(nn.Module):
         lstmOut, (hidden, cell) = self.actorLstm(state, hiddenState)
         x = self.relu(self.actorFc1(hidden[-1]))
         x = self.relu(self.actorFc2(x))
-        alpha = F.softplus(self.dirichletAlphaLayer(x)) + 1e-3
-        dist = torch.distributions.Dirichlet(alpha)
+
+        if self.useDirichlet:
+            alpha = F.softplus(self.dirichletAlphaLayer(x)) + 1e-3
+            dist = Dirichlet(alpha)
+        else:
+            mean = self.actorMeanLayer(x)
+            log_std = self.actorLogStd.expand_as(mean)
+            action_std = torch.exp(log_std)
+            normDist = Normal(mean, action_std)
+            dist = Independent(normDist, 1)  # Treat as joint
         return dist, (hidden, cell)
 
 
@@ -205,6 +224,7 @@ class PPOAgent:
         rewardFunction=None,
         normAdvantages=False,
         useEntropy=False,
+        useDirichlet=True,  # Whether to use Dirichlet distribution for actions (otherwise mean/std)
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -235,7 +255,7 @@ class PPOAgent:
         self.rewardFunction = rewardFunction
         self.normAdvantages = normAdvantages
         self.useEntropy = useEntropy
-
+        self.useDirichlet = useDirichlet
         self.actor = ActorNetwork(
             self.fc1_n,
             self.fc2_n,
@@ -243,6 +263,7 @@ class PPOAgent:
             self.state_n,
             self.actions_n,
             modelName="actor",
+            useDirichlet=useDirichlet,
         ).to(device)
 
         self.critic = CriticNetwork(
@@ -287,9 +308,10 @@ class PPOAgent:
             criticValuation, criticHidden = self.critic(
                 state, hiddenAndCellStates["critic"]
             )
-            probabilities = distribution.log_prob(action)  # assumes independence
+            probabilities = distribution.log_prob(
+                action
+            )  # assumes independence when using normal distribution
             action = torch.squeeze(action)
-        # self.time_step += 1 # not actually necessary to care about luckily
         if returnHidden:
             return action, probabilities, criticValuation, actorHidden, criticHidden
         else:
@@ -417,7 +439,9 @@ class PPOAgent:
                 # Use the original (unnormalized) advantages to compute returns
                 returns = adv + oldVals
                 try:
-                    criticLoss = F.mse_loss(criticOut, returns)
+                    criticLoss = F.huber_loss(
+                        criticOut, returns
+                    )  # MSE gave MASSIVE losses
                 except UserWarning as e:
                     raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
@@ -445,7 +469,7 @@ class PPOAgent:
                 "actor_prob_ratio_mean": probRatio.mean().item(),
             }
         )
-        if LOG_CONCENTRATION_HEATMAP:
+        if LOG_CONCENTRATION_HEATMAP and self.useDirichlet:
             concentrations = actorDist.concentration.cpu().detach().numpy()
 
             plt.figure(figsize=(10, 8))
