@@ -25,7 +25,6 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
 
     def __init__(
         self,
-        timeWindow,
         numFeatures,
         lstmHiddenSize=128,
         lstmOutputSize=128,
@@ -36,7 +35,6 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         )
         self.lstmHiddenSize = lstmHiddenSize
         self.lstmOutputSize = lstmOutputSize
-        self.timeWindow = timeWindow
         self.modelName = modelName
         self.save_file_name = self.modelName + _SAVE_SUFFIX
 
@@ -59,6 +57,9 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         :param hiddenState: hidden state of the LSTM
         :return: features and hidden state
         """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+
         if hiddenState is None:
             hiddenState = self.initHidden(batchSize=x.size(0))
         _, (hidden, cell) = self.featureLSTM(x, hiddenState)
