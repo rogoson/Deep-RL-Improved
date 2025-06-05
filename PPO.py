@@ -208,7 +208,7 @@ class PPOAgent:
         policyClip: float,
         gamma: float,  # discount factor
         actor_noise: float,  # noise for actor
-        lstmHiddenSize: int,
+        lstmHiddenSizeDictionary: dict,
         state_n: int,
         actions_n: int,
         batch_size: int,
@@ -231,7 +231,7 @@ class PPOAgent:
         self.gamma = gamma
         self.noise = actor_noise
         self.state_n = state_n
-        self.lstmHiddenSize = lstmHiddenSize
+        self.lstmHiddenSizeDictionary = lstmHiddenSizeDictionary
         self.actions_n = actions_n
         self.batch_size = batch_size
         self.fc1_n = fc1_n
@@ -245,7 +245,7 @@ class PPOAgent:
             stateDim=nonFeatureStateDim,
             actionDim=actions_n,
             device=device,
-            hiddenAndCellSize=lstmHiddenSize,
+            hiddenAndCellSizeDictionary=lstmHiddenSizeDictionary,
         )
         self.learn_step_count = 0
         self.time_step = 0
@@ -259,7 +259,7 @@ class PPOAgent:
         self.actor = ActorNetwork(
             self.fc1_n,
             self.fc2_n,
-            self.lstmHiddenSize,
+            self.lstmHiddenSizeDictionary["actor"],
             self.state_n,
             self.actions_n,
             modelName="actor",
@@ -269,7 +269,7 @@ class PPOAgent:
         self.critic = CriticNetwork(
             self.fc1_n,
             self.fc2_n,
-            self.lstmHiddenSize,
+            self.lstmHiddenSizeDictionary["critic"],
             self.state_n,
             self.actions_n,
             modelName="critic",
