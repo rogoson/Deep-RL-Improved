@@ -38,9 +38,6 @@ from torch.optim import Adam
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
-LOG_CONCENTRATION_HEATMAP = (
-    False  # Depending on internet speed, this can make things MUCH slower
-)
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
@@ -225,6 +222,7 @@ class PPOAgent:
         normAdvantages=False,
         useEntropy=False,
         useDirichlet=True,  # Whether to use Dirichlet distribution for actions (otherwise mean/std)
+        log_concentration_heatmap=False,  # Whether to log concentration heatmap - depending on internet speeds, this can slow training severely (by like 3x)
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -256,6 +254,7 @@ class PPOAgent:
         self.normAdvantages = normAdvantages
         self.useEntropy = useEntropy
         self.useDirichlet = useDirichlet
+        self.log_concentration_heatmap = log_concentration_heatmap and useDirichlet
         self.actor = ActorNetwork(
             self.fc1_n,
             self.fc2_n,
@@ -469,7 +468,7 @@ class PPOAgent:
                 "actor_prob_ratio_mean": probRatio.mean().item(),
             }
         )
-        if LOG_CONCENTRATION_HEATMAP and self.useDirichlet:
+        if self.log_concentration_heatmap:
             concentrations = actorDist.concentration.cpu().detach().numpy()
 
             plt.figure(figsize=(10, 8))

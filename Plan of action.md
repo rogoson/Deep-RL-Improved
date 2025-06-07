@@ -41,21 +41,24 @@
   3. Add visualise data code (training, validation, training+validation, test) - _Done_
   4. Figure out Tesla issue - _Done_ (required redownloading data)
   5. Stocks issue - _Done_
-  6. Set up your experiments to run.
-- **Day 6:** Review Bugs file (categorize into severity) - include:
+- **Day 6:**: Set up your experiments to run. Start running them.
+  1. Normalisation - _Done_
+  2. Noise
+  3. Rewards
+  - Variance
+- **Day 7:** Review Bugs file (categorize into severity) - include:
   1. What it is
   2. Impact
   3. Whether it is fixed
   4. What I learned?
      Second - Review Marked-up diss
-- **Day 7:** Redo Introduction, Literature Review
 
 ## Third Week
 
-- **Day 1:** Write/Rewrite Methodology section
-- **Day 2-3:** Rewrite experimental design
-- **Day 4-5:** Run experiments
-- **Day 6-7:** Write results and conclusions
+- **Day 1-2:** Redo Introduction, Literature Review
+- **Day 3-4:** Write/Rewrite Methodology section
+- **Day 5-6:** Rewrite experimental design
+- **Day 7:** Write results and conclusions
 
 ## Fourth Week
 
@@ -87,10 +90,9 @@
 
 ### Normalisation
 
-- Show normalised and unnormalised validation data (in the paper, not appendix).
+- Show normalised and unnormalised validation data (in the paper, not appendix) - vary seeds (no noise)
 - Show total rewards also with the normalised data – it seems very noisy, unstable progress:  
   [Unstable Progress](https://wandb.ai/richardpogoson-none/RL-Portfolio-Management/runs/ihukwg4t?nw=nwuserrichardpogoson)
-- Just one run (no noise)
 
 # Results
 
