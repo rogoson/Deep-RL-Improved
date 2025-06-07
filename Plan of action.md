@@ -39,6 +39,8 @@
   1. Validate that everything is set up correctly.
   2. Ensure that you know what you want for each section.
   3. Set up your experiments to run.
+  4. Add visualise data code (training, validation, training+validation, test) - _Done_
+  5. Figure out Tesla issue - _Done_ (required redownloading data)
 - **Day 6:** Review Bugs file (categorize into severity) - include:
   1. What it is
   2. Impact
@@ -60,3 +62,44 @@
 - **Day 4-7:**
   1. Practice viva questions
   2. Check how to diff code (new and old) using marketplace "Diff" thing
+
+# Suggested Experimentation (Week 2, Day 5):
+
+# Goal
+
+- Investigate reward functions and mitigative abilities
+- Correlation between CVaR risk aversion and risk mitigation
+- Effect of noise on small dataset
+
+# Experimental Design
+
+## Introduction
+
+- Remove hyperparameter details. Focus on CVaR variability, noise, and reward functions.
+
+## Methodology
+
+### Noise and Seeds
+
+- Preliminary explanation
+- Show effects of noise used
+
+### Normalisation
+
+- Show normalised and unnormalised validation data (in the paper, not appendix).
+- Show total rewards also with the normalised data – it seems very noisy, unstable progress:  
+  [Unstable Progress](https://wandb.ai/richardpogoson-none/RL-Portfolio-Management/runs/ihukwg4t?nw=nwuserrichardpogoson)
+
+# Results
+
+## 1. Noise – Effect on SLR
+
+- Vary seeds for **200k timesteps** and provide commentary using graphs
+- Same approach as before, but include **WandB graphs** of final training portfolio values over time (divided by scaling)
+
+## 2. Varied Base Seeds on Rewards
+
+- Show what the agent is really doing (Appendix) – strange behavior
+- CVaR's mitigation ability – analyze all cases
+
+## 3. Comparisons with Indices
