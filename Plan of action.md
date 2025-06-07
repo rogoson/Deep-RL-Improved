@@ -36,11 +36,12 @@
   4. Maybe try to fit a line for total reward compared to evaluation performances. - _no, time constraints_
   5. Set hidden size to 512 for ensuing experiments. - _Done_
 - **Day 5:** Set up experiments
-  1. Validate that everything is set up correctly.
-  2. Ensure that you know what you want for each section.
-  3. Set up your experiments to run.
-  4. Add visualise data code (training, validation, training+validation, test) - _Done_
-  5. Figure out Tesla issue - _Done_ (required redownloading data)
+  1. Validate that everything is set up correctly. - _Done_
+  2. Ensure that you know what you want for each section. - _Done_
+  3. Add visualise data code (training, validation, training+validation, test) - _Done_
+  4. Figure out Tesla issue - _Done_ (required redownloading data)
+  5. Stocks issue - _Done_
+  6. Set up your experiments to run.
 - **Day 6:** Review Bugs file (categorize into severity) - include:
   1. What it is
   2. Impact
@@ -82,24 +83,27 @@
 ### Noise and Seeds
 
 - Preliminary explanation
-- Show effects of noise used
+- Show effects of noise used on prices
 
 ### Normalisation
 
 - Show normalised and unnormalised validation data (in the paper, not appendix).
 - Show total rewards also with the normalised data – it seems very noisy, unstable progress:  
   [Unstable Progress](https://wandb.ai/richardpogoson-none/RL-Portfolio-Management/runs/ihukwg4t?nw=nwuserrichardpogoson)
+- Just one run (no noise)
 
 # Results
 
 ## 1. Noise – Effect on SLR
 
-- Vary seeds for **200k timesteps** and provide commentary using graphs
-- Same approach as before, but include **WandB graphs** of final training portfolio values over time (divided by scaling)
+- Vary seeds for **200k timesteps** and provide commentary using graphs. Compare Training Rewards with validation rewards for each base seed used = 20 graphs. Long, but doable.
 
 ## 2. Varied Base Seeds on Rewards
 
-- Show what the agent is really doing (Appendix) – strange behavior
 - CVaR's mitigation ability – analyze all cases
+- reward variance on Test-Set
+- Same as before - compare general metrics
 
 ## 3. Comparisons with Indices
+
+- Show what the agent is really doing (Appendix) – strange behavior
