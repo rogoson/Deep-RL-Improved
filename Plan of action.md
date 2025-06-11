@@ -43,22 +43,23 @@
   5. Stocks issue - _Done_
 - **Day 6:**: Set up your experiments to run. Start running them.
   1. Normalisation - _Done_
-  2. Noise
-  3. Rewards
-  - Variance
-- **Day 7:** Review Bugs file (categorize into severity) - include:
+  2. Noise - _Done_
+- **Day 7:** Review Bugs file (categorize into severity) - include: - _Done_
   1. What it is
   2. Impact
   3. Whether it is fixed
   4. What I learned?
-     Second - Review Marked-up diss
+     Second - Review Marked-up diss - _Done_
 
 ## Third Week
 
-- **Day 1-2:** Redo Introduction, Literature Review
+- **Day 1:** Figure out how to integrate context for mistakes
+- **Day 2:** Redo Introduction, Literature Review
+  1. Rewards (set these up)
+  - Variance
 - **Day 3-4:** Write/Rewrite Methodology section
 - **Day 5-6:** Rewrite experimental design
-- **Day 7:** Write results and conclusions
+- **Day 7:** Write results and conclusions. Redo intro. - catastrophic forgetting?
 
 ## Fourth Week
 
@@ -98,7 +99,7 @@
 
 ## 1. Noise – Effect on SLR
 
-- Vary seeds for **200k timesteps** and provide commentary using graphs. Compare Training Rewards with validation rewards for each base seed used = 20 graphs. Long, but doable.
+- Vary seeds for **200k timesteps** and provide commentary using graphs. Compare Training Rewards with validation rewards for each base seed used. No Std, just means. Decorrelating data - higher noise = higher decorrelation = harder generalizability
 
 ## 2. Varied Base Seeds on Rewards
 
