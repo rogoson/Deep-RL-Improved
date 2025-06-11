@@ -159,7 +159,9 @@ class TimeSeriesEnvironment(gym.Env):
                 self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
             )  # return ln(P_t / P_t-1) = ln(1 + r)
         elif "Differential" in rewardMethod:
-            reward = self.calculateDifferentialSharpeRatio(reward)
+            reward = self.calculateDifferentialSharpeRatio(
+                self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+            )
         else:
             raise ValueError("Unknown reward method: " + rewardMethod)
 
@@ -244,7 +246,9 @@ class TimeSeriesEnvironment(gym.Env):
             )
         return self.logScaling * actualReward if self.scaleLogReward else actualReward
 
-    def calculateDifferentialSharpeRatio(self, currentReturn):
+    def calculateDifferentialSharpeRatio(
+        self, mostRecentPortfolioValue, previousPortfolioValue
+    ):
         """
         In line with Moody & Saffel's "Reinforcement Learning for Trading" 1998 Paper
         It is best to look at the formula found in this paper:
@@ -252,6 +256,7 @@ class TimeSeriesEnvironment(gym.Env):
         The relevant equations are found on page 3.
         """
         # initialisation
+        currentReturn = mostRecentPortfolioValue / previousPortfolioValue - 1
         if self.meanReturn is None:
             self.meanReturn = currentReturn
             self.meanSquaredReturn = currentReturn**2
