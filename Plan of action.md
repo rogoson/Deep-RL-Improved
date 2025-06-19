@@ -53,7 +53,8 @@
 
 ## Third Week
 
-- **Day 1:** Figure out how to integrate context for mistakes
+- **Day 1:**
+  1. Context for mistakes
 - **Day 2:** Redo Introduction, Literature Review
   1. Rewards (set these up)
   - Variance
