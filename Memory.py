@@ -1,6 +1,6 @@
 import torch
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 
 
 class Memory:
@@ -11,7 +11,13 @@ class Memory:
     """
 
     def __init__(
-        self, maxSize, batchSize, stateDim, actionDim, hiddenAndCellSize, device="cpu"
+        self,
+        maxSize,
+        batchSize,
+        stateDim,
+        actionDim,
+        hiddenAndCellSizeDictionary,
+        device="cpu",
     ):
         self.maxSize = maxSize
         self.batchSize = batchSize
@@ -38,26 +44,38 @@ class Memory:
         self.hiddenStateBuffers = {
             "actor": {
                 "h": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["actor"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
                 "c": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["actor"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
             },
             "critic": {
                 "h": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["critic"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
                 "c": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["critic"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
             },
             "feature": {
                 "h": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["feature"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
                 "c": torch.zeros(
-                    (maxSize, hiddenAndCellSize), dtype=torch.float32, device=device
+                    (maxSize, hiddenAndCellSizeDictionary["feature"]),
+                    dtype=torch.float32,
+                    device=device,
                 ),
             },
         }

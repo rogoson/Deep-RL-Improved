@@ -2,15 +2,18 @@ import numpy as np
 import gymnasium as gym
 import torch
 from gymnasium import spaces
+import warnings
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
+# Convert all UserWarnings into exceptions
+warnings.filterwarnings("error", category=RuntimeWarning)
+
 LOGGING_MARKET_DATA = (
     False  # Set to True to enable logging_MARKET_DATA for debugging purposes
 )
 LOGGING_CVAR_REWARD = False
 LOGGING_LOG_REWARD = False
 LOGGING_DSR_REWARD = False
-SCALE_LOG_REWARD = True
 
 
 class TimeSeriesEnvironment(gym.Env):
@@ -23,6 +26,7 @@ class TimeSeriesEnvironment(gym.Env):
         startCash,
         AGENT_RISK_AVERSION,
         transactionCost=0.001,
+        scaleLogReward=True,
     ):
 
         self.marketData = marketData  # Stores percentage price changes over time
@@ -44,6 +48,14 @@ class TimeSeriesEnvironment(gym.Env):
         self.PORTFOLIO_VALUES = [self.startCash]
         self.AGENT_RISK_AVERSION = AGENT_RISK_AVERSION
         self.isReady = False
+        self.scaleLogReward = (
+            scaleLogReward  # whether to scale the log reward by 1000 or not
+        )
+        self.logScaling = 1000
+        if self.scaleLogReward:
+            print(
+                f"WARNING: Scaling Log Reward by {self.logScaling}x. This is to prevent the reward from being too small."
+            )
 
         self.CVaR = [0]
         self.maxAllocationChange = 1  # liquidigy parameter.
@@ -147,7 +159,9 @@ class TimeSeriesEnvironment(gym.Env):
                 self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
             )  # return ln(P_t / P_t-1) = ln(1 + r)
         elif "Differential" in rewardMethod:
-            reward = self.calculateDifferentialSharpeRatio(reward)
+            reward = self.calculateDifferentialSharpeRatio(
+                self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+            )
         else:
             raise ValueError("Unknown reward method: " + rewardMethod)
 
@@ -207,7 +221,6 @@ class TimeSeriesEnvironment(gym.Env):
         :return: The logarithmic reward.
         return ln(P_t / P_t-1) = ln(1 + r)
         """
-        scaling = 1000
         if LOGGING_LOG_REWARD:
             print("+" * 50)
             print(
@@ -217,18 +230,25 @@ class TimeSeriesEnvironment(gym.Env):
                 f"Log Reward = ln({mostRecentPortfolioValue} / {previousPortfolioValue}) = {np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
             print(
-                f"Scaled Log Reward ({scaling}x) = {scaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
+                f"Scaled Log Reward ({self.logScaling}x) = {self.logScaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
             print("+" * 50)
-        actualReward = (
-            np.log(mostRecentPortfolioValue / previousPortfolioValue)
-            if previousPortfolioValue is not None
-            else 0.0
-        )
+        actualReward = None
+        try:
+            actualReward = (
+                np.log(mostRecentPortfolioValue / previousPortfolioValue)
+                if previousPortfolioValue is not None
+                else 0.0
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Error calculating log reward: {e}. mostRecentPortfolioValue = {mostRecentPortfolioValue}, previousPortfolioValue = {previousPortfolioValue}"
+            )
+        return self.logScaling * actualReward if self.scaleLogReward else actualReward
 
-        return scaling * actualReward if SCALE_LOG_REWARD else actualReward
-
-    def calculateDifferentialSharpeRatio(self, currentReturn):
+    def calculateDifferentialSharpeRatio(
+        self, mostRecentPortfolioValue, previousPortfolioValue
+    ):
         """
         In line with Moody & Saffel's "Reinforcement Learning for Trading" 1998 Paper
         It is best to look at the formula found in this paper:
@@ -236,6 +256,7 @@ class TimeSeriesEnvironment(gym.Env):
         The relevant equations are found on page 3.
         """
         # initialisation
+        currentReturn = mostRecentPortfolioValue / previousPortfolioValue - 1
         if self.meanReturn is None:
             self.meanReturn = currentReturn
             self.meanSquaredReturn = currentReturn**2
@@ -294,9 +315,11 @@ class TimeSeriesEnvironment(gym.Env):
             if LOGGING_CVAR_REWARD:
                 print(f"Current CVaR = {currentCVaR}, Previous CVaR = {self.CVaR[-1]}")
             changeInCVaR = -(currentCVaR - self.CVaR[-1])
-            cVaRNum = np.sign(changeInCVaR) * (
-                np.log1p(np.abs(changeInCVaR))
-            )  # optional as to whether you want to normalise this or not
+            cVaRNum = (
+                changeInCVaR
+                / self.startCash
+                * (self.logScaling if self.scaleLogReward else 1)
+            )  # scaled to be on similar levels as scaled log reward - verify!
             if LOGGING_CVAR_REWARD:
                 print(f"Change in CVaR = {changeInCVaR}, Normalised = {cVaRNum}")
             riskPenalty = self.AGENT_RISK_AVERSION * cVaRNum

@@ -8,6 +8,8 @@ OLDMISC/
 UnderDevelopment/
 .vscode
 wandb/
+minigridModels/
+validation/
 
 
 # Ignore all files with .docx extension

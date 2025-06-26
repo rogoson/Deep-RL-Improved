@@ -32,17 +32,12 @@ from torch.nn import (
     Parameter,
     functional as F,
 )
-from torch.distributions import Dirichlet
+from torch.distributions import Dirichlet, Independent, Normal
 from torch.optim import Adam
 
-device = torch.device("cpu")
+device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
-USE_ENTROPY = True  # whether to use entropy in the loss function
-NORMALIZE_ADVANTAGES = True
-LOG_CONCENTRATION_HEATMAP = (
-    False  # Depending on internet speed, this can make things MUCH slower
-)
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
@@ -80,15 +75,15 @@ class CriticNetwork(nn.Module):
 
         self.save_file_name = self.modelName + _SAVE_SUFFIX
         self.optimiser_save_file_name = self.modelName + _OPTIMISER_SAVE_SUFFIX
-        self.lstm = LSTM(
+        self.criticLstm = LSTM(
             input_size=self.state_n,
             hidden_size=lstmHiddenSize,
             num_layers=1,
             batch_first=True,
         )
-        self.fc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.fc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
-        self.fc3 = layerInit(Linear(self.fc2_n, 1))
+        self.criticFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
+        self.criticFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+        self.criticFc3 = layerInit(Linear(self.fc2_n, 1))
         self.tanh = nn.Tanh()
 
     def forward(self, state, hiddenState=None):
@@ -97,10 +92,10 @@ class CriticNetwork(nn.Module):
 
         if state.dim() == 2:
             state = state.unsqueeze(1)
-        lstmOut, (hidden, cell) = self.lstm(state, hiddenState)
-        valuation = self.tanh(self.fc1(hidden[-1]))
-        valuation = self.tanh(self.fc2(valuation))
-        valuation = self.fc3(valuation)
+        lstmOut, (hidden, cell) = self.criticLstm(state, hiddenState)
+        valuation = self.tanh(self.criticFc1(hidden[-1]))
+        valuation = self.tanh(self.criticFc2(valuation))
+        valuation = self.criticFc3(valuation)
         return valuation, (hidden, cell)
 
     def initHidden(self, batchSize=1):
@@ -125,6 +120,7 @@ class ActorNetwork(nn.Module):
         state_n: int,
         actions_n: int,
         modelName: str,
+        useDirichlet: bool = True,  # Whether to use Dirichlet or Mean/Std for actions
     ):
         super(ActorNetwork, self).__init__()
         self.fc1_n = fc1_n
@@ -133,20 +129,30 @@ class ActorNetwork(nn.Module):
         self.state_n = state_n
         self.actions_n = actions_n
         self.modelName = modelName
+        self.useDirichlet = useDirichlet
         self.save_file_name = self.modelName + _SAVE_SUFFIX
         self.optimiser_save_file_name = self.modelName + _OPTIMISER_SAVE_SUFFIX
 
         # Map state to action
-        self.lstm = LSTM(
+        self.actorLstm = LSTM(
             input_size=self.state_n,
             hidden_size=self.lstmHiddenSize,
             num_layers=1,
             batch_first=True,
         )
 
-        self.fc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.fc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
-        self.alphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.actorFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
+        self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+
+        # For dirichlet
+        self.dirichletAlphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+
+        # For Gaussian (following iclr blog track)
+        self.actorMeanLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.actorLogStd = Parameter(
+            torch.zeros(1, actions_n)
+        )  # learnable log standard deviation
+
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
 
@@ -171,11 +177,19 @@ class ActorNetwork(nn.Module):
         if state.dim() == 2:
             state = state.unsqueeze(1)
 
-        lstmOut, (hidden, cell) = self.lstm(state, hiddenState)
-        x = self.relu(self.fc1(hidden[-1]))
-        x = self.relu(self.fc2(x))
-        alpha = F.softplus(self.alphaLayer(x)) + 1e-3
-        dist = torch.distributions.Dirichlet(alpha)
+        lstmOut, (hidden, cell) = self.actorLstm(state, hiddenState)
+        x = self.relu(self.actorFc1(hidden[-1]))
+        x = self.relu(self.actorFc2(x))
+
+        if self.useDirichlet:
+            alpha = F.softplus(self.dirichletAlphaLayer(x)) + 1e-3
+            dist = Dirichlet(alpha)
+        else:
+            mean = self.actorMeanLayer(x)
+            log_std = self.actorLogStd.expand_as(mean)
+            action_std = torch.exp(log_std)
+            normDist = Normal(mean, action_std)
+            dist = Independent(normDist, 1)  # Treat as joint
         return dist, (hidden, cell)
 
 
@@ -191,7 +205,7 @@ class PPOAgent:
         policyClip: float,
         gamma: float,  # discount factor
         actor_noise: float,  # noise for actor
-        lstmHiddenSize: int,
+        lstmHiddenSizeDictionary: dict,
         state_n: int,
         actions_n: int,
         batch_size: int,
@@ -205,13 +219,17 @@ class PPOAgent:
         maxSize=None,
         entropyCoefficient=0.01,
         rewardFunction=None,
+        normAdvantages=False,
+        useEntropy=False,
+        useDirichlet=True,  # Whether to use Dirichlet distribution for actions (otherwise mean/std)
+        log_concentration_heatmap=False,  # Whether to log concentration heatmap - depending on internet speeds, this can slow training severely (by like 3x)
     ):
         self.alpha = alpha
         self.policyClip = policyClip
         self.gamma = gamma
         self.noise = actor_noise
         self.state_n = state_n
-        self.lstmHiddenSize = lstmHiddenSize
+        self.lstmHiddenSizeDictionary = lstmHiddenSizeDictionary
         self.actions_n = actions_n
         self.batch_size = batch_size
         self.fc1_n = fc1_n
@@ -225,7 +243,7 @@ class PPOAgent:
             stateDim=nonFeatureStateDim,
             actionDim=actions_n,
             device=device,
-            hiddenAndCellSize=lstmHiddenSize,
+            hiddenAndCellSizeDictionary=lstmHiddenSizeDictionary,
         )
         self.learn_step_count = 0
         self.time_step = 0
@@ -233,20 +251,24 @@ class PPOAgent:
         self.featureExtractor = featureExtractor.to(device)
         self.entropyCoefficient = entropyCoefficient
         self.rewardFunction = rewardFunction
-
+        self.normAdvantages = normAdvantages
+        self.useEntropy = useEntropy
+        self.useDirichlet = useDirichlet
+        self.log_concentration_heatmap = log_concentration_heatmap and useDirichlet
         self.actor = ActorNetwork(
             self.fc1_n,
             self.fc2_n,
-            self.lstmHiddenSize,
+            self.lstmHiddenSizeDictionary["actor"],
             self.state_n,
             self.actions_n,
             modelName="actor",
+            useDirichlet=useDirichlet,
         ).to(device)
 
         self.critic = CriticNetwork(
             self.fc1_n,
             self.fc2_n,
-            self.lstmHiddenSize,
+            self.lstmHiddenSizeDictionary["critic"],
             self.state_n,
             self.actions_n,
             modelName="critic",
@@ -285,9 +307,10 @@ class PPOAgent:
             criticValuation, criticHidden = self.critic(
                 state, hiddenAndCellStates["critic"]
             )
-            probabilities = distribution.log_prob(action)  # assumes independence
+            probabilities = distribution.log_prob(
+                action
+            )  # assumes independence when using normal distribution
             action = torch.squeeze(action)
-        # self.time_step += 1 # not actually necessary to care about luckily
         if returnHidden:
             return action, probabilities, criticValuation, actorHidden, criticHidden
         else:
@@ -392,14 +415,14 @@ class PPOAgent:
                     actions
                 )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
 
-                if USE_ENTROPY:
+                if self.useEntropy:
                     # encourage exploration by adding entropy to the loss
                     entropy = actorDist.entropy().mean()
                 else:
                     entropy = torch.tensor(0.0, device=device)
 
                 # robbed from blog track also, should help with stability
-                if NORMALIZE_ADVANTAGES:
+                if self.normAdvantages:
                     # Normalize advantages to have mean 0 and std 1
                     normalisedAdv = (adv - adv.mean()) / (adv.std() + 1e-8)
                 else:
@@ -415,7 +438,9 @@ class PPOAgent:
                 # Use the original (unnormalized) advantages to compute returns
                 returns = adv + oldVals
                 try:
-                    criticLoss = F.mse_loss(criticOut, returns)
+                    criticLoss = F.huber_loss(
+                        criticOut, returns
+                    )  # MSE gave MASSIVE losses
                 except UserWarning as e:
                     raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
@@ -435,7 +460,7 @@ class PPOAgent:
             {
                 "actor_loss": actorLoss.item(),
                 "critic_loss": criticLoss.item(),
-                "entropy": entropy.item() if USE_ENTROPY else 0.0,
+                "entropy": entropy.item() if self.useEntropy else 0.0,
                 "total_loss": totalLoss.item(),
                 "advantage_mean": normalisedAdv.mean().item(),
                 "advantage_std": normalisedAdv.std().item(),
@@ -443,7 +468,7 @@ class PPOAgent:
                 "actor_prob_ratio_mean": probRatio.mean().item(),
             }
         )
-        if LOG_CONCENTRATION_HEATMAP:
+        if self.log_concentration_heatmap:
             concentrations = actorDist.concentration.cpu().detach().numpy()
 
             plt.figure(figsize=(10, 8))
