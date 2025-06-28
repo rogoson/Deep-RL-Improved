@@ -1,5 +1,6 @@
 # Ignore specific file
 ActionsToTake.txt
+
 # Ignore folders
 __pycache__/
 venv/
@@ -11,8 +12,9 @@ wandb/
 minigridModels/
 validation/
 
+Plan of action.md
 
-# Ignore all files with .docx extension
+# Ignore all files with these extensions
 *.docx
 *.drawio
 *.xlsx
