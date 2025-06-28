@@ -1,7 +1,6 @@
 import numpy as np
 import gymnasium as gym
 import torch
-from gymnasium import spaces
 import matplotlib.pyplot as plt
 from IPython.display import HTML
 import os
@@ -199,7 +198,7 @@ class TimeSeriesEnvironment(gym.Env):
         """
         Some metrics that can be returned for a given run.
         """
-        if portfolioValues == None:
+        if portfolioValues is None:
             portfolioValues = self.PORTFOLIO_VALUES
         info = dict()
         info["Cumulative \nReturn (%)"] = round(
@@ -221,7 +220,7 @@ class TimeSeriesEnvironment(gym.Env):
         :param portfolioValues: The portfolio values to calculate the maximum drawdown for.
         :return: The maximum drawdown for the portfolio values.
         """
-        if portfolioValues == None:
+        if portfolioValues is None:
             portfolioValues = self.PORTFOLIO_VALUES
         maxValue = float("-inf")
         maxDrawdown = 0.0
