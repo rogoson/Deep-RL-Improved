@@ -5,13 +5,21 @@
 Much of the code in this file may resemble code that was sumbitted for the CM30359 Coursework.
 I adapted some code used for our TD3 implementation where possible and changed the rest where needed.
 """
+from utils import pathJoin
+from Memory import Memory
+from torch.nn import (
+    Linear,
+    LSTM,
+    init,
+        Parameter,
+    functional as F,
+)
+from torch.distributions import Dirichlet, Independent, Normal
 
-import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import wandb
-import os
 import torch
 import torch.nn as nn
 import warnings
@@ -20,20 +28,6 @@ import warnings
 warnings.filterwarnings("error", category=UserWarning)
 
 
-from utils import pathJoin
-from Memory import Memory
-from torch.nn import (
-    Linear,
-    Softmax,
-    LSTM,
-    Sequential,
-    init,
-    Tanh,
-    Parameter,
-    functional as F,
-)
-from torch.distributions import Dirichlet, Independent, Normal
-from torch.optim import Adam
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 _SAVE_SUFFIX = "_ppo"

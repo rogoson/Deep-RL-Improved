@@ -1,8 +1,11 @@
 import numpy as np
 import gymnasium as gym
 import torch
-from gymnasium import spaces
+import matplotlib.pyplot as plt
+from IPython.display import HTML
+import os
 import warnings
+from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 # Convert all UserWarnings into exceptions
@@ -26,7 +29,8 @@ class TimeSeriesEnvironment(gym.Env):
         startCash,
         AGENT_RISK_AVERSION,
         transactionCost=0.001,
-        scaleLogReward=True,
+        scaleLogReward=False,
+        render_config=None,
     ):
 
         self.marketData = marketData  # Stores percentage price changes over time
@@ -56,6 +60,11 @@ class TimeSeriesEnvironment(gym.Env):
             print(
                 f"WARNING: Scaling Log Reward by {self.logScaling}x. This is to prevent the reward from being too small."
             )
+        self.rendering = False
+        if render_config is not None:
+            self.rendering = render_config["enabled"]
+            self.renderingStage = render_config["stage"]
+            self.animationNumber = render_config["run_id"]
 
         self.CVaR = [0]
         self.maxAllocationChange = 1  # liquidigy parameter.
@@ -128,14 +137,15 @@ class TimeSeriesEnvironment(gym.Env):
         return torch.stack(observationMatrix).unsqueeze(0)
 
     def step(
-        self, action, rewardMethod="CVaR", returnNextObs=True
+        self, action, rewardMethod="CVaR", returnNextObs=True, observeReward=True
     ):  # if random, no need to return next obs
         newPortfolioValue = self.calculatePortfolioValue(
             action,
             self.marketData.iloc[self.timeStep + 1].values,
         )
-
-        reward = newPortfolioValue - self.PORTFOLIO_VALUES[-1]
+        reward = (
+            newPortfolioValue - self.PORTFOLIO_VALUES[-1]
+        )  # this variable name should probably change man
         self.timeStep += 1
         info = dict()
 
@@ -149,21 +159,28 @@ class TimeSeriesEnvironment(gym.Env):
             done = True
             info["reason"] = "max_steps_reached"
 
+        if self.rendering and done:
+            file = f"animations/{self.renderingStage}/{self.animationNumber}/"
+            if not os.path.exists(file):
+                os.makedirs(file)
+            self.animatePortfolio(f"{file}/portfolio_animation.mp4")
+
         self.RETURNS.append(reward)
         self.PORTFOLIO_VALUES.append(newPortfolioValue)
 
-        if rewardMethod == "CVaR":
-            reward = self.getCVaRReward(reward)
-        elif rewardMethod == "Standard Logarithmic Returns":
-            reward = self.getLogReward(
-                self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
-            )  # return ln(P_t / P_t-1) = ln(1 + r)
-        elif "Differential" in rewardMethod:
-            reward = self.calculateDifferentialSharpeRatio(
-                self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
-            )
-        else:
-            raise ValueError("Unknown reward method: " + rewardMethod)
+        if observeReward:
+            if "CVaR" in rewardMethod:
+                reward = self.getCVaRReward(reward)
+            elif rewardMethod == "Standard Logarithmic Returns":
+                reward = self.getLogReward(
+                    self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+                )  # return ln(P_t / P_t-1) = ln(1 + r)
+            elif "Differential" in rewardMethod:
+                reward = self.calculateDifferentialSharpeRatio(
+                    self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
+                )
+            else:
+                raise ValueError("Unknown reward method: " + rewardMethod)
 
         if not done and returnNextObs:
             nextObs = self.getData(self.timeStep)
@@ -181,7 +198,7 @@ class TimeSeriesEnvironment(gym.Env):
         """
         Some metrics that can be returned for a given run.
         """
-        if portfolioValues == None:
+        if portfolioValues is None:
             portfolioValues = self.PORTFOLIO_VALUES
         info = dict()
         info["Cumulative \nReturn (%)"] = round(
@@ -203,7 +220,7 @@ class TimeSeriesEnvironment(gym.Env):
         :param portfolioValues: The portfolio values to calculate the maximum drawdown for.
         :return: The maximum drawdown for the portfolio values.
         """
-        if portfolioValues == None:
+        if portfolioValues is None:
             portfolioValues = self.PORTFOLIO_VALUES
         maxValue = float("-inf")
         maxDrawdown = 0.0
@@ -315,11 +332,7 @@ class TimeSeriesEnvironment(gym.Env):
             if LOGGING_CVAR_REWARD:
                 print(f"Current CVaR = {currentCVaR}, Previous CVaR = {self.CVaR[-1]}")
             changeInCVaR = -(currentCVaR - self.CVaR[-1])
-            cVaRNum = (
-                changeInCVaR
-                / self.startCash
-                * (self.logScaling if self.scaleLogReward else 1)
-            )  # scaled to be on similar levels as scaled log reward - verify!
+            cVaRNum = changeInCVaR
             if LOGGING_CVAR_REWARD:
                 print(f"Change in CVaR = {changeInCVaR}, Normalised = {cVaRNum}")
             riskPenalty = self.AGENT_RISK_AVERSION * cVaRNum
@@ -363,6 +376,10 @@ class TimeSeriesEnvironment(gym.Env):
             targetAllocation = torch.tensor(
                 targetAllocation, dtype=torch.float32, device=device
             )
+
+        targetAllocation = targetAllocation / torch.sum(
+            targetAllocation
+        )  # normalise to sum to 1
 
         if self.previousPortfolioValue is None:
             self.previousPortfolioValue = self.startCash
@@ -423,9 +440,95 @@ class TimeSeriesEnvironment(gym.Env):
         CVaR = np.mean(sortedReturns[:indexToBePicked])
         return CVaR
 
-    def render(self, mode="human"):
-        # not implemented
-        pass
+    def animatePortfolio(self, save_path=None):
+        fig, (ax1, ax2, ax3) = plt.subplots(
+            3, 1, figsize=(12, 10), constrained_layout=True
+        )
+
+        categories = ["Cash"] + list(self.marketData.columns)
+        numberOfAssets = len(categories)
+
+        # Define consistent colormap
+        colourMap = plt.colormaps.get_cmap("nipy_spectral")
+        assetColours = [
+            colourMap(i / (numberOfAssets - 1)) for i in range(numberOfAssets)
+        ]
+
+        def update(frame):
+            try:
+                ax1.clear()
+                ax2.clear()
+                ax3.clear()
+
+                timeAxis = list(range(frame + 1))
+                portfolioValues = self.PORTFOLIO_VALUES[: frame + 1]
+                tensorWeights = torch.stack(self.allocations[: frame + 1]).cpu()
+                weights = tensorWeights.numpy()
+
+                # Plot 1: Portfolio value over time
+                ax1.plot(
+                    timeAxis, portfolioValues, label="Portfolio Value", color="blue"
+                )
+                ax1.set_title("Portfolio Value Over Time")
+                ax1.set_ylabel("Value")
+                ax1.grid(True)
+                ax1.legend(loc="upper left")
+
+                # Plot 2: Portfolio weights over time
+                for i in range(weights.shape[1]):
+                    ax2.plot(
+                        timeAxis,
+                        weights[:, i],
+                        label=categories[i],
+                        color=assetColours[i],
+                    )
+                ax2.set_title("Portfolio Weights Over Time")
+                ax2.set_ylabel("Weight")
+                ax2.set_xlabel("Step")
+
+                min_val = self.allocations[frame].min().item()
+                max_val = self.allocations[frame].max().item()
+                ax2.set_ylim([min_val - 0.005, max_val + 0.005])
+                ax2.grid(True)
+
+                # Better legend positioning
+                ax2.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=7)
+
+                # Plot 3: Current allocation as bar chart
+                currentAllocation = self.allocations[frame].cpu().numpy()
+                bars = ax3.bar(categories, currentAllocation, color=assetColours)
+
+                ax3.set_xlabel("Assets")
+                ax3.set_ylabel("Proportion Allocated")
+                ax3.set_title(f"Allocations at Step {frame}")
+                ax3.tick_params(axis="x", labelsize=8)
+                ax3.set_xticks(range(len(categories)))
+                ax3.set_xticklabels(categories, rotation=45, ha="right")
+
+                # Custom legend only once (colors match lines and bars)
+                if frame == 0:  # Only add legend once to avoid clutter
+                    ax3.legend(
+                        bars,
+                        categories,
+                        loc="upper left",
+                        bbox_to_anchor=(1.02, 1),
+                        fontsize=7,
+                    )
+
+            except Exception as e:
+                print(f"Error at frame {frame}: {e}")
+                raise e
+
+        ani = FuncAnimation(
+            fig, update, frames=len(self.PORTFOLIO_VALUES), repeat=False
+        )
+
+        if save_path:
+            writer = FFMpegWriter(fps=10, metadata=dict(artist="Richard"), bitrate=1800)
+            ani.save(save_path, writer=writer, dpi=150)
+            print(f"Animation saved to {save_path}")
+        else:
+            return HTML(ani.to_jshtml())
 
     def close(self):
         pass
