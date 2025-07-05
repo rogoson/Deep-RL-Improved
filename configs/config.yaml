@@ -1,0 +1,84 @@
+project_name: "RL-Portfolio-Management_IMPROVEMENTS"
+epochs: 25
+time_window: 30
+rl_strats: ["PPOLSTM"]
+baseline: ["RANDOM"]
+varied_base_seeds: [1, 3, 5, 7, 9]
+normalise_data: false
+noises: [0, 1e-3, 2e-3, 4e-3, 5e-3, 6e-3, 8e-3, 1e-2, 0.02, 0.05, 0.1, 0.2]
+
+env:
+  redownload: true
+  stocks: "All"
+  start_date: "2009-01-01"
+  period: "1D"
+  base_seed: 9
+  transaction_cost: 2e-4
+  start_cash: 10000
+
+agent:
+  gamma: 0.99
+  learning_rate: 3e-4
+  reward_function: "Standard Logarithmic Returns"
+  ppo:
+    gae_lambda: 0.98
+    clip_param: 0.2
+    batch_size: 24
+    fc1_n: 128
+    fc2_n: 128
+    feature_output_size: 128
+    epochs: 1
+    entropy_coef: 0.01
+    actor_noise: 0
+    norm_advantages: false
+    use_entropy: false
+    use_dirichlet: true
+    log_concentration: false
+    use_normals: false # likely requires softmax; dividing may not work for short selling
+    learning_frequency: 24
+    actor_critic_hidden_state_size: 512
+    strategy: "PPOLSTM"
+
+hyperparameters:
+  feature_output_sizes: [32, 64, 128, 256, 512]
+  learning_rates: [1e-4, 3e-4, 5e-4, 7e-4]
+
+evaluation:
+  log_observations: false
+  log_input_data: false
+
+#argparse or something?
+experiments:
+  _common: &defaults
+    datatype: "validation"
+    save: false
+    benchmark: false
+    compare: null
+    use_noise_eval: false
+    for_learning_curve: false
+
+  noise_testing:
+    <<: *defaults
+
+  hyperparameter_tuning:
+    <<: *defaults
+
+  reward_testing:
+    datatype: "testing"
+    save: true
+    benchmark: null
+    compare: null
+    use_noise_eval: false #possible comparison with perturbed?
+    for_learning_curve: True
+
+  random:
+    <<: *defaults
+    benchmark: true
+    use_noise_eval: true
+
+  nonRLComparisonStrategies:
+    <<: *defaults
+    datatype: "testing"
+
+test:
+  learning_curve_frequency: 500
