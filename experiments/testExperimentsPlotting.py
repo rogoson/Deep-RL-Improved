@@ -1,10 +1,8 @@
 from itertools import cycle
 import numpy as np
 import matplotlib.pyplot as plt
-from trainingAndEval.Evaluation import evaluateAgent
 from experiments.metricComputations import scoreFormula, maxDrawdown
 from utils.TabulationUtils import tabulate_neatly
-from utils.EvaluationConfig import setUpEvaluationConfig
 
 FIG_SIZE = (12, 8)
 WINDOW = 5  # raw
