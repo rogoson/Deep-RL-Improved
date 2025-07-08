@@ -857,6 +857,8 @@ class TimeSeriesEnvironment(gym.Env):
     def calculatePortfolioValue(self, targetAllocation, closingPriceChanges):
         """
         Portfoloio Value Calculation Logic. This is detailed in section 3.1.1 of the paper.
+        targetAllocation: Desired allocation for end of day.
+        closingPriceChanges: Changes in the prices over the day, relative to the previous day.
         """
         if not isinstance(targetAllocation, torch.Tensor):
             targetAllocation = torch.tensor(
@@ -892,9 +894,11 @@ class TimeSeriesEnvironment(gym.Env):
             [torch.tensor([0.0], device=device), closingPriceChanges]
         )
 
+        # effect the price changes over the day - see how each portfolio allocation changes
         wealthDistribution = self.previousPortfolioValue * currentAllocation
         changeWealth = (1 + closingPriceChanges) * wealthDistribution
-
+        
+        #compute transaction cost based on money held. You are penalised heavier for stronger movements
         transactionCost = 0
         if self.transactionCost > 0:
             transactionCost = self.transactionCost * torch.sum(
