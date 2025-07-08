@@ -2,17 +2,16 @@
 ActionsToTake.txt
 
 # Ignore folders
-__pycache__/
-venv/
-plots_/
-OLDMISC/
-UnderDevelopment/
+src/__pycache__/
+src/venv/
+src/plots_/
+src/OLDMISC/
+src/UnderDevelopment/
 .vscode
-wandb/
-minigridModels/
-validation/
+src/wandb/
+src/minigridModels/
+src/validation/
 
-Plan of action.md
 
 # Ignore all files with these extensions
 *.docx
