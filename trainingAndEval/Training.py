@@ -4,7 +4,7 @@ from agents.CommonAgentFunctions import hiddenStateReset, storeExperiences
 from utils.AgentConfig import createAgentFromConfig
 from Evaluation import evaluateAgent
 from utils.EvaluationConfig import setUpEvaluationConfig
-from experiments.initialisationHelpers import initialiseWandb
+from experiments.InitialisationHelpers import initialiseWandb
 
 
 def trainingLoop(

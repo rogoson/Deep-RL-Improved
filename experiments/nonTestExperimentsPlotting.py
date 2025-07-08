@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from metricComputations import computeWeightedAUC
+from MetricComputations import computeWeightedAUC
 
 
 def plotNormalisationExpPerformance(

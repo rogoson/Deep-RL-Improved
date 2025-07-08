@@ -1,11 +1,11 @@
 from utils.GeneralUtils import seed
 from trainingAndEval.Training import trainingLoop
-from experiments.nonTestExperimentsPlotting import plotNormalisationExpPerformance
-from initialisationHelpers import getEnv
+from experiments.NonTestExperimentsPlotting import plotNormalisationExpPerformance
+from InitialisationHelpers import getEnv
 from utils.EvaluationConfig import setUpEvaluationConfig
 from trainingAndEval.Evaluation import evaluateAgent
-from experiments.nonTestExperimentsPlotting import runNoiseComparison
-from experiments.testExperimentsPlotting import (
+from experiments.NonTestExperimentsPlotting import runNoiseComparison
+from experiments.TestExperimentsPlotting import (
     plotLearningCurves,
     tabulateBestTestSetPerformance,
     bestPerformancesAndStandardDeviations,

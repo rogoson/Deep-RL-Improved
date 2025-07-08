@@ -1,7 +1,7 @@
 from itertools import cycle
 import numpy as np
 import matplotlib.pyplot as plt
-from experiments.metricComputations import scoreFormula, maxDrawdown
+from experiments.MetricComputations import scoreFormula, maxDrawdown
 from utils.TabulationUtils import tabulate_neatly
 
 
