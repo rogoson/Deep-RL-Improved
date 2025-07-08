@@ -268,10 +268,8 @@ class PPOAgent:
         ).to(device)
         """
         # Optimizer. Since I backpropagate the feature extractor based on the actor and critic,
-        # I need to include it in the optimizer as well.
-        # Earlier in implementation, I wasn't certain how to backpropagate the sum 
-        # actor and critic loss through the feature extractor, so I just decided to merge
-        # the three optimizers into one.
+        #  I just decided to merge the three optimizers into one and rely on a singular learning
+        # rate for the entire setup.
         """
         self.optimizer = torch.optim.Adam(
             (
@@ -317,7 +315,7 @@ class PPOAgent:
         )
 
     def train(self, nextObs, hAndC):
-        for _ in range(self.epochs):  # not sure when i removed this
+        for _ in range(self.epochs):  
             (
                 stateArr,
                 actionArr,

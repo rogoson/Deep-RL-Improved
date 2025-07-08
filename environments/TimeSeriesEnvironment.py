@@ -32,7 +32,7 @@ class TimeSeriesEnvironment(gym.Env):
         startCash,
         normaliseData,
         perturbationNoise,
-        AGENT_RISK_AVERSION=0,
+        agentRiskAversion=0,
         transactionCost=0.001,
         render_config=None,
     ):
@@ -47,9 +47,9 @@ class TimeSeriesEnvironment(gym.Env):
         self.allocations = []  # For transaction Cost Calculation
         self.startCash = startCash
         self.previousPortfolioValue = startCash
-        self.RETURNS = [0]
+        self.PORTFOLIO_DIFFERENCES = [0]
         self.PORTFOLIO_VALUES = [self.startCash]
-        self.AGENT_RISK_AVERSION = AGENT_RISK_AVERSION
+        self.agentRiskAversion = agentRiskAversion
         self.isReady = False
         self.hasVisualised = False
         self.baseSeed = None
@@ -506,13 +506,13 @@ class TimeSeriesEnvironment(gym.Env):
         Plot the Apple stock prices from the testing data.
         """
         plt.figure(figsize=(12, 6))
-        for nVal in noises:
+        for noiseVal in noises:
             testData = self.datasetsAndDetails["testing_data"]["AAPL"].copy()
-            noise = np.random.normal(0, nVal, size=testData.shape)
+            noise = np.random.normal(0, noiseVal, size=testData.shape)
             frame = testData + (noise * testData.std().values)
             closingPrices = frame["Close"].values
             limitedHorizon = max(min(horizon, len(closingPrices)), 2)
-            plt.plot(closingPrices[:limitedHorizon], label=f"Noise Level = {nVal}")
+            plt.plot(closingPrices[:limitedHorizon], label=f"Noise Level = {noiseVal}")
 
         plt.title(f"Apple Price with Noise Levels. Horizon = {horizon}")
         plt.xlabel("Date")
@@ -621,13 +621,13 @@ class TimeSeriesEnvironment(gym.Env):
         return torch.stack(observationMatrix).unsqueeze(0)
 
     def step(
-        self, action, rewardMethod="CVaR", returnNextObs=True, observeReward=True
+        self, action, returnNextObs=True, observeReward=True
     ):  # if random, no need to return next obs
         newPortfolioValue = self.calculatePortfolioValue(
             action,
             self.marketData.iloc[self.timeStep + 1].values,
         )
-        reward = (
+        absolutePortfolioDifference = (
             newPortfolioValue - self.PORTFOLIO_VALUES[-1]
         )  # this variable name should probably change man
         self.timeStep += 1
@@ -649,12 +649,13 @@ class TimeSeriesEnvironment(gym.Env):
                 os.makedirs(file)
             self.animatePortfolio(f"{file}/portfolio_animation.mp4")
 
-        self.RETURNS.append(reward)
+        self.PORTFOLIO_DIFFERENCES.append(absolutePortfolioDifference)
         self.PORTFOLIO_VALUES.append(newPortfolioValue)
 
         if observeReward:
+            rewardMethod = self.getRewardFunction()
             if "CVaR" in rewardMethod:
-                reward = self.getCVaRReward(reward)
+                reward = self.getCVaRReward(absolutePortfolioDifference)
             elif rewardMethod == "Standard Logarithmic Returns":
                 reward = self.getLogReward(
                     self.PORTFOLIO_VALUES[-1], self.PORTFOLIO_VALUES[-2]
@@ -730,9 +731,6 @@ class TimeSeriesEnvironment(gym.Env):
             print(
                 f"Log Reward = ln({mostRecentPortfolioValue} / {previousPortfolioValue}) = {np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
             )
-            print(
-                f"Scaled Log Reward ({self.logScaling}x) = {self.logScaling * np.log(mostRecentPortfolioValue / previousPortfolioValue) if previousPortfolioValue is not None else 0.0}"
-            )
             print("+" * 50)
         actualReward = None
         try:
@@ -745,7 +743,7 @@ class TimeSeriesEnvironment(gym.Env):
             raise ValueError(
                 f"Error calculating log reward: {e}. mostRecentPortfolioValue = {mostRecentPortfolioValue}, previousPortfolioValue = {previousPortfolioValue}"
             )
-        return self.logScaling * actualReward if self.scaleLogReward else actualReward
+        return actualReward
 
     def calculateDifferentialSharpeRatio(
         self, mostRecentPortfolioValue, previousPortfolioValue
@@ -808,7 +806,7 @@ class TimeSeriesEnvironment(gym.Env):
         It should be logChangeInCVaR penalty, otherwise normal log returns.
         Issue: at the first timestep where CVaR is calculated, the change will be large as the previous value is 0. This isn't an issue, since the agent never sees this, but would need to be dealt with if the agent did.
         """
-        if useCVaR and self.AGENT_RISK_AVERSION != 0:
+        if useCVaR and self.agentRiskAversion != 0:
             if LOGGING_CVAR_REWARD:
                 print("*" * 50)
                 print(f"Calculating CVaR Reward with r = {r}")
@@ -819,7 +817,7 @@ class TimeSeriesEnvironment(gym.Env):
             cVaRNum = changeInCVaR
             if LOGGING_CVAR_REWARD:
                 print(f"Change in CVaR = {changeInCVaR}, Normalised = {cVaRNum}")
-            riskPenalty = self.AGENT_RISK_AVERSION * cVaRNum
+            riskPenalty = self.agentRiskAversion * cVaRNum
             if LOGGING_CVAR_REWARD:
                 print(f"Risk Penalty = {riskPenalty}")
             self.CVaR.append(currentCVaR)
@@ -851,7 +849,7 @@ class TimeSeriesEnvironment(gym.Env):
         self.PORTFOLIO_VALUES = [self.startCash]
         self.isReady = False
         self.CVaR = [0]
-        self.RETURNS = [0]
+        self.PORTFOLIO_DIFFERENCES = [0]
         self.meanReturn = None
         self.meanSquaredReturn = None
         self.pushTrainingWindow(episode=episode, epoch=epoch, evaltype=evaltype)
@@ -923,7 +921,7 @@ class TimeSeriesEnvironment(gym.Env):
         """
         if len(self.CVaR) < max(10, int(1 / percentage)):
             return np.mean(self.CVaR)
-        sortedReturns = sorted(self.RETURNS)
+        sortedReturns = sorted(self.PORTFOLIO_DIFFERENCES)
         indexToBePicked = int(np.ceil(percentage * len(sortedReturns)))
         CVaR = np.mean(sortedReturns[:indexToBePicked])
         return CVaR
@@ -1018,7 +1016,7 @@ class TimeSeriesEnvironment(gym.Env):
         else:
             return HTML(ani.to_jshtml())
 
-    def warmUp(self, rewardFunction, observeReward=True):
+    def warmUp(self, observeReward=True):
         """
         'warm up' environment until there's enough data to estimate CVaR
         and to create a long enough time window to pass to the lstm.
@@ -1026,7 +1024,6 @@ class TimeSeriesEnvironment(gym.Env):
         for _ in range(self.TIME_WINDOW):
             self.step(
                 np.ones(len(self.numberOfAssets) + 1) / (len(self.numberOfAssets) + 1),
-                rewardMethod=rewardFunction,
                 observeReward=observeReward,
             )
         self.setIsReady(True)
@@ -1082,9 +1079,6 @@ class TimeSeriesEnvironment(gym.Env):
         }
         # between the current and previous time step.
         self.episodeLength = self.datasetsAndDetails["episode_length"]
-        if "Differential" in self.rewardFunction:
-            decay = float(self.rewardFunction.split("_")[1])
-            self.decayRate = decay
 
     def getIsReady(self):
         """
@@ -1094,3 +1088,20 @@ class TimeSeriesEnvironment(gym.Env):
 
     def setIsReady(self, boolean: bool):
         self.isReady = boolean
+
+    def setRewardFunction(self, rewardFunction):
+        """
+        Set the reward function to be used in the environment.
+        :param rewardFunction: The reward function to be used.
+        """
+        if "Differential" in rewardFunction:
+            decay = float(rewardFunction.split("_")[1])
+            self.decayRate = decay
+        self.rewardFunction = rewardFunction
+
+    def getRewardFunction(self):
+        """
+        Get the reward function to be used in the environment.
+        :return: The reward function to be used.
+        """
+        return self.rewardFunction

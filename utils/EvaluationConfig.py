@@ -17,7 +17,7 @@ def setUpEvaluationConfig(yamlConfig, stage):
         help="Random runs",
     )
     parser.add_argument(
-        "--compare", type=str, default=None, help="Optional comparison strategy"
+        "--comparisonStrategy", type=str, default=None, help="Optional comparison strategy"
     )
     parser.add_argument(
         "--use_noise_eval", action="store_true", help="Enable noise for evaluation"
@@ -46,7 +46,7 @@ def setUpEvaluationConfig(yamlConfig, stage):
             if args.benchmark is not None
             else experimentConfig.get("benchmark")
         ),
-        "compare": args.compare or experimentConfig.get("compare"),
+        "comparison_strategy": args.comparison_strategy or experimentConfig.get("comparison_strategy"),
         "use_noise_eval": args.use_noise_eval or experimentConfig.get("use_noise_eval"),
         "for_learning_curve": args.for_learning_curve
         or experimentConfig.get("for_learning_curve"),

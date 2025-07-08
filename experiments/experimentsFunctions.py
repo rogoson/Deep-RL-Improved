@@ -23,7 +23,7 @@ def normalisationEffectExperiment(
     """
     Test the effect of normalisation on the agent's performance.
     """
-    portVals = dict()
+    portfolioValues = dict()
     for isNormalised in [True, False]:
         normFolder = (
             f"portfolios/{'Normalisation' if isNormalised else 'NonNormalisation'}/"
@@ -38,7 +38,7 @@ def normalisationEffectExperiment(
             print("*" * 50)
             print("Testing Seed: ", s)
             env = getEnv(yamlConfig)
-            portVals[s] = trainingLoop(
+            portfolioValues[s] = trainingLoop(
                 yamlConfig, env, agentType, useNoiseEval=False, save=False, stage=phase
             )
             desiredFolder = f"{normFolder}{s}/"
@@ -46,12 +46,12 @@ def normalisationEffectExperiment(
                 os.makedirs(desiredFolder)
             np.savetxt(
                 f"{desiredFolder}validationPerformances.txt",
-                portVals[s]["validation_performances"],
+                portfolioValues[s]["validation_performances"],
                 fmt="%f",
             )
             np.savetxt(
                 f"{desiredFolder}trainingRewards.txt",
-                portVals[s]["epoch_reward"],
+                portfolioValues[s]["epoch_reward"],
                 fmt="%f",
             )
 
@@ -75,7 +75,7 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
     Test different levels of noise for the agent
     """
 
-    portVals = dict()
+    portfolioValues = dict()
     yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
     noiseFolder = f"portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
 
@@ -89,7 +89,7 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
             print("*" * 50)
             print("Testing Noise: ", noise)
             env = getEnv(yamlConfig)
-            portVals[noise] = trainingLoop(
+            portfolioValues[noise] = trainingLoop(
                 yamlConfig, env, agentType, useNoiseEval=False, save=False, stage=phase
             )
 
@@ -99,7 +99,7 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
                 os.makedirs(folderForSavingNoise)
             np.savetxt(
                 f"{folderForSavingNoise}{noise}.txt",
-                portVals[noise]["validation_performances"],
+                portfolioValues[noise]["validation_performances"],
                 fmt="%f",
             )
             print("*" * 50)
@@ -217,14 +217,14 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
     experimentConfig = setUpEvaluationConfig(yamlConfig, "nonRLComparisonStrategies")
     env = getEnv(yamlConfig)
     comparisonStrategies = env.setup(yamlConfig)["comparisonStrategies"]
-    benchmarkPortVals = dict()
+    benchmarkportfolioValues = dict()
     for strat, vec in comparisonStrategies:
-        benchmarkPortVals[strat] = evaluateAgent(
+        benchmarkportfolioValues[strat] = evaluateAgent(
             agent=None,
             env=env,
             num=0,
             conf=None,
-            compare=(strat, vec),
+            comparisonStrat=(strat, vec),
             **experimentConfig,
         )
 
@@ -232,7 +232,7 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
         yamlConfig,
         bestTestSetPerformance,
         randomMetrics["average_random_performance"],
-        benchmarkPortVals=benchmarkPortVals,
+        benchmarkportfolioValues=benchmarkportfolioValues,
         rewards=rewards,
     )
 

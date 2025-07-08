@@ -31,6 +31,7 @@ def trainingLoop(
         numberOfFeatures=envAgentInformation["numberOfFeatures"],
     )
     initialiseWandb(yamlConfig, agent, agentConfig)
+    env.setRewardFunction(agent.rewardFunction)
 
     experimentConfig = setUpEvaluationConfig(yamlConfig, stage)
     strategy = yamlConfig["agent"][agentType]["strategy"]
@@ -79,7 +80,7 @@ def trainingLoop(
                     )
                     hiddenAndCellStates["actor"] = actorHidden  # returned from agent
                     hiddenAndCellStates["critic"] = criticHidden
-                next, reward, done, _, info = env.step(action, agent.rewardFunction)
+                next, reward, done, _, info = env.step(action)
                 totalReward += reward
                 totalTimesteps += 1
                 if strategy in yamlConfig["rl_strats"]:

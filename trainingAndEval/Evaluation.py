@@ -61,7 +61,7 @@ def evaluateAgent(
     forLearningCurve=False,
     benchmark=False,
     epoch=0,
-    compare=None,
+    comparisonStrat=None,
     useNoiseEval=True,
     stage=None,
     BASELINE=None,
@@ -78,12 +78,12 @@ def evaluateAgent(
         """
         np.random.seed(env.baseSeed + epoch)
         toRun = BASELINE
-    if compare is not None:
+    if comparisonStrat is not None:
         """
         An optional comparison strategy. This is used to compare the agent's performance against an index.
         """
-        strategy = compare[0]
-        strategyVector = compare[1]
+        strategy = comparisonStrat[0]
+        strategyVector = comparisonStrat[1]
         toRun = [strategy]
 
     for strategy in toRun:
@@ -141,7 +141,7 @@ def evaluateAgent(
                         criticHidden  # update and cell states of critic
                     )
             next, reward, done, _, info = env.step(
-                action, agent.rewardFunction, returnNextObs=False, observeReward=False
+                action, returnNextObs=False, observeReward=False
             )  # the reward is not observed during evaluation, since the agent does not learn from the data, further, nextobs is not required since no GAE
 
         env.rendering_config = None

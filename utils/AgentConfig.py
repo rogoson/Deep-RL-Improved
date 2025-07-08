@@ -7,7 +7,7 @@ def createAgentFromConfig(
     phase,
     yamlConfig,
     optionalHyperConfig=None,
-    numberOfFeatures=0,
+    numberOfFeatures=None, # better hope to God that this exists
     featureExtractor=None,
 ):
     """

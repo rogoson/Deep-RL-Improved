@@ -53,7 +53,7 @@ experiments:
     datatype: "validation"
     save: false
     benchmark: false
-    compare: null
+    comparison_strat: null
     use_noise_eval: false
     for_learning_curve: false
 
@@ -67,7 +67,7 @@ experiments:
     datatype: "testing"
     save: true
     benchmark: null
-    compare: null
+    comparison_strat: null
     use_noise_eval: false #possible comparison with perturbed?
     for_learning_curve: True
 

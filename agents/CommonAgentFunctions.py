@@ -1,12 +1,12 @@
 def storeExperiences(
-    agent, data, reward, done, strategy, action, prob, val, hiddenAndCStates=None
+    agent, data, reward, done, strategy, action, prob, val, hiddenAndCellStates=None
 ):
     """
     Store experiences in the agent's memory.
     """
     if strategy == "PPOLSTM":
         agent.store(
-            data, action, prob.squeeze(), val.squeeze(), reward, done, hiddenAndCStates
+            data, action, prob.squeeze(), val.squeeze(), reward, done, hiddenAndCellStates
         )
 
 
