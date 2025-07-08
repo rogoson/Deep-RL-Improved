@@ -4,12 +4,9 @@ import matplotlib.pyplot as plt
 from experiments.metricComputations import scoreFormula, maxDrawdown
 from utils.TabulationUtils import tabulate_neatly
 
-FIG_SIZE = (12, 8)
-WINDOW = 5  # raw
-
 
 def plotLearningCurves(
-    yamlConfig, rewardFunctions, randomMetrics, sumTestTrainiingPeriods
+    yamlConfig, rewardFunctions, randomMetrics, sumTestTrainingPeriods, WINDOW = 5, FIG_SIZE = (12, 8)
 ):
     bestTestSetPerformance = dict()
     for seed in yamlConfig["varied_base_seeds"]:
@@ -37,7 +34,7 @@ def plotLearningCurves(
                     timeSteps.append(
                         i
                         / yamlConfig["test"]["learning_curve_frequency"]
-                        * sumTestTrainiingPeriods
+                        * sumTestTrainingPeriods
                     )
             cumulativeReturnsData[rewardFunc] = cumReturns
             scoresData[rewardFunc] = scores
