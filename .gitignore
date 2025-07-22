@@ -2,18 +2,20 @@
 ActionsToTake.txt
 
 # Ignore folders
-src/__pycache__/
-src/venv/
-src/plots_/
-src/OLDMISC/
-src/UnderDevelopment/
-.vscode
-src/wandb/
-src/minigridModels/
-src/validation/
+src/main/__pycache__/
+src/main/venv/
+src/main/plots_/
+src/main/OLDMISC/
+src/main/UnderDevelopment/
+.vscode/
+src/main/wandb/
+src/main/minigridModels/
+src/main/validation/
 
 
 # Ignore all files with these extensions
 *.docx
 *.drawio
 *.xlsx
+*__pycache__/
+*.pytest_cache/
