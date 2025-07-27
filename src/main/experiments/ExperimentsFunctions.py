@@ -7,6 +7,7 @@ from .NonTestExperimentsPlotting import (
 from .InitialisationHelpers import getEnv
 from main.utils.EvaluationConfig import setUpEvaluationConfig
 from main.trainingAndEval.Evaluation import evaluateAgent
+from pathlib import Path
 from .TestExperimentsPlotting import (
     plotLearningCurves,
     tabulateBestTestSetPerformance,
@@ -29,7 +30,7 @@ def normalisationEffectExperiment(
     for isNormalised in [True, False]:
         normFolder = (
             getFileWritingLocation(sourceFolder)
-            + f"plotsAndPorftolioTrajectories/portfolios/{'Normalisation' if isNormalised else 'NonNormalisation'}/"
+            + f"/portfolios/{'Normalisation' if isNormalised else 'NonNormalisation'}/"
         )
         for s in yamlConfig["varied_base_seeds"]:
             BASE_SEED = s
@@ -41,9 +42,7 @@ def normalisationEffectExperiment(
             print("*" * 50)
             print("Testing Seed: ", s)
             env = getEnv(yamlConfig)
-            portfolioValues[s] = trainingLoop(
-                yamlConfig, env, agentType, useNoiseEval=False, save=False, stage=phase
-            )
+            portfolioValues[s] = trainingLoop(yamlConfig, env, agentType, stage=phase)
             desiredFolder = f"{normFolder}{s}/"
             if not os.path.exists(desiredFolder):
                 os.makedirs(desiredFolder)
@@ -61,16 +60,22 @@ def normalisationEffectExperiment(
             print("*" * 50)
             wandb.finish()
     print("Normalisation Effect Experiment Completed")
-    _ = plotNormalisationExpPerformance(
-        getFileWritingLocation(sourceFolder)
-        + "plotsAndPorftolioTrajectories/portfolios/Normalisation/",
+    fileWritingLocation = getFileWritingLocation(sourceFolder)
+
+    base = Path(fileWritingLocation)
+    (base / "plots").mkdir(parents=True, exist_ok=True)
+    (base / "portfolios").mkdir(parents=True, exist_ok=True)
+
+    plotNormalisationExpPerformance(
+        base / "portfolios/Normalisation",
         title="With Normalisation (Rolling Z-Score)",
-        saveFile="plots/NormalisationEffect.png",
+        saveFile=base / "plots/NormalisationEffect.png",
     )
-    _ = plotNormalisationExpPerformance(
-        "portfolios/NonNormalisation",
+
+    plotNormalisationExpPerformance(
+        base / "portfolios/NonNormalisation",
         title="Without Normalisation",
-        saveFile="plots/NonNormalisationEffect.png",
+        saveFile=base / "plots/NonNormalisationEffect.png",
     )
 
 
@@ -85,7 +90,7 @@ def noiseTestingExperiment(
     yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
     noiseFolder = (
         getFileWritingLocation(sourceFolder)
-        + f"plotsAndPorftolioTrajectories/portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
+        + f"/portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
     )
 
     for s in yamlConfig["varied_base_seeds"]:
@@ -99,7 +104,7 @@ def noiseTestingExperiment(
             print("Testing Noise: ", noise)
             env = getEnv(yamlConfig)
             portfolioValues[noise] = trainingLoop(
-                yamlConfig, env, agentType, useNoiseEval=False, save=False, stage=phase
+                yamlConfig, env, agentType, stage=phase
             )
 
             # Save to the noise folder

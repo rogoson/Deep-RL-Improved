@@ -168,9 +168,7 @@ bestCurveY = None
 def plotNoiseComparison(yamlConfig, noiseLevel, env):
     global bestAuc, bestNoiseLevel, bestCurveX, bestCurveY
 
-    baseFolder = (
-        getFileWritingLocation() + "plotsAndPortfolioTrajectories/portfolios/noises/"
-    )
+    baseFolder = getFileWritingLocation() + "/portfolios/noises/"
     normFolder = f"{baseFolder}Normalisation/"
     nonNormFolder = f"{baseFolder}NonNormalisation/"
 

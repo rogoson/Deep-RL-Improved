@@ -5,6 +5,7 @@ rl_strats: ["PPOLSTM"]
 baseline: ["RANDOM"]
 varied_base_seeds: [1, 3, 5, 7, 9]
 normalise_data: false
+wandb_state: "disabled"
 noises:
   [0, 0.001, 0.002, 0.004, 0.005, 0.006, 0.008, 0.01, 0.02, 0.05, 0.1, 0.2]
 
@@ -52,12 +53,14 @@ evaluation:
 #argparse or something?
 experiments:
   _common: &defaults
-    datatype: "validation"
-    save: false
+    dataType: "validation"
     benchmark: false
-    comparison_strat: null
+    comparisonStrat: null
     use_noise_eval: false
     for_learning_curve: false
+
+  data_normalisation:
+    <<: *defaults
 
   noise_testing:
     <<: *defaults
@@ -66,10 +69,9 @@ experiments:
     <<: *defaults
 
   reward_testing:
-    datatype: "testing"
-    save: true
+    dataType: "testing"
     benchmark: null
-    comparison_strat: null
+    comparisonStrat: null
     use_noise_eval: false #possible comparison with perturbed?
     for_learning_curve: True
 
@@ -80,7 +82,7 @@ experiments:
 
   nonRLComparisonStrategies:
     <<: *defaults
-    datatype: "testing"
+    dataType: "testing"
 
 test:
   learning_curve_frequency: 500

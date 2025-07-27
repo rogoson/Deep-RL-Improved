@@ -23,6 +23,7 @@ def normData(df, windowSize=0, actuallyNormalise=True):
     """
     # rolling mean normalisation
     # min periods = 1 may be a limitation
+    df = df.drop(columns=["Return"])  # remove return column if it exists
     if actuallyNormalise:
         rollingDf = df.rolling(window=windowSize, min_periods=1).mean()
         rollingStd = df.rolling(
@@ -33,7 +34,6 @@ def normData(df, windowSize=0, actuallyNormalise=True):
 
         rollingZScoreDf.columns = df.columns
         return rollingZScoreDf  # temporarily removing normalisation!!! #rollingZScoreDf.fillna(0) # fill NaNs with 0s, forced
-    df = df.drop(columns=["Return"])  # remove return column if it exists
     return df
 
 
@@ -42,5 +42,6 @@ def getFileWritingLocation(directory="main"):
         os.path.join(os.path.dirname(__file__), "..", "plotsAndPorftolioTrajectories")
     )
     if directory != "main":
-        fileWritingLocation = fileWritingLocation.replace("main", "test")
+        fileWritingLocation = fileWritingLocation.replace("main", "tests")
     os.makedirs(fileWritingLocation, exist_ok=True)
+    return fileWritingLocation

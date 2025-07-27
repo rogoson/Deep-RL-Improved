@@ -58,11 +58,7 @@ class TimeSeriesEnvironment(gym.Env):
         self.perturbationNoise = perturbationNoise
         self.normaliseData = normaliseData
 
-        self.rendering = False
-        if render_config is not None:
-            self.rendering = render_config["enabled"]
-            self.renderingStage = render_config["stage"]
-            self.animationNumber = render_config["run_id"]
+        self.animationNumber = None
 
         self.CVaR = [0]
         self.maxAllocationChange = 1  # liquidigy parameter.
@@ -223,6 +219,18 @@ class TimeSeriesEnvironment(gym.Env):
                     print(f"Warning: Column '{col}' not found in DataFrame.")
             return dfRounded
 
+        today = datetime.today().strftime("%Y-%m-%d")
+        # Create and write to a file
+        print(str(BASE_DIR))
+        if os.path.exists(BASE_DIR / "lastDownloaded.txt"):
+            with open(BASE_DIR / "lastDownloaded.txt", "r") as file:
+                date = file.readline().strip()
+                if date == today:
+                    redownloadData = False
+        else:
+            with open(BASE_DIR / "lastDownloaded.txt", "w") as file:
+                file.write(f"{today}\n")
+
         if redownloadData:
             for productId in productIds:
                 """
@@ -230,17 +238,20 @@ class TimeSeriesEnvironment(gym.Env):
                 column names are consistent across all dataframes.
                 """
                 dataframe = None
+
                 try:
                     dataframe = retrieveIndexData(ticker=productId)
                 except Exception:
                     continue
+
+                if dataframe.empty:
+                    redownloadData = False
+                    if not os.path.exists(BASE_DIR / "CSVs/"):
+                        raise Exception("Market Data not downloadable and not saved.")
+                    break
                 columnNames = [value[1] for value in list(dataframe.columns.values)]
                 dataframe.columns = columnNames
                 dataframes[productId] = dataframe
-            if dataframe.empty and not os.path.exists(BASE_DIR / "CSVs/"):
-                raise Exception("Market Data not downloadable and not saved.")
-            else:
-                redownloadData = False
 
         def verifyDataConsistency(dataframes, stage="None"):
             """
@@ -345,15 +356,14 @@ class TimeSeriesEnvironment(gym.Env):
                 if not os.path.exists(BASE_DIR / "CSVs/"):
                     os.makedirs(BASE_DIR / "CSVs/")
                 df.to_csv(
-                    f"{BASE_DIR}/CSVs" + "/{product}_{period}_periods.csv",
+                    BASE_DIR / f"CSVs/{product}_{period}_periods.csv",
                     sep="\t",
                     index=False,
                 )
         else:
-            print("Reached saved.")
             for productId in productIds:
                 dataframes[productId] = pd.read_csv(
-                    f"{BASE_DIR}/CSVs/{productId}_{period}_periods.csv", sep="\t"
+                    BASE_DIR / f"CSVs/{productId}_{period}_periods.csv", sep="\t"
                 )
 
         for product in productIds:
@@ -569,11 +579,12 @@ class TimeSeriesEnvironment(gym.Env):
             df.reset_index(drop=True)
             if dataType == "validation":
                 # only add noise if validation data. Else (if testing) do not.
-                df += noise * df.std().values  # make autoregressive?
+                if noise is not None:
+                    df += noise * df.std().values  # make autoregressive?
             df["Return"] = df["Close"].pct_change().fillna(0)
             PRICE_DATA[key] = df["Return"].values
             normalisedData[key] = normData(
-                df, actuallyNormalise=self.normaliseData
+                df, windowSize=self.TIME_WINDOW, actuallyNormalise=self.normaliseData
             )  # currently not normalisiing - normalisation makes it look noisy and removes indicator information
 
         self.marketData = pd.DataFrame(PRICE_DATA)
@@ -689,14 +700,10 @@ class TimeSeriesEnvironment(gym.Env):
             done = True
             info["reason"] = "max_steps_reached"
 
-        if self.rendering and done:
-            file = f"animations/{self.renderingStage}/{self.animationNumber}/"
-            if not os.path.exists(file):
-                os.makedirs(file)
-            self.animatePortfolio(f"{file}/portfolio_animation.mp4")
-
         self.PORTFOLIO_DIFFERENCES.append(absolutePortfolioDifference)
         self.PORTFOLIO_VALUES.append(newPortfolioValue)
+
+        reward = None
 
         if observeReward:
             rewardMethod = self.getRewardFunction()
@@ -1063,6 +1070,7 @@ class TimeSeriesEnvironment(gym.Env):
             writer = FFMpegWriter(fps=10, metadata=dict(artist="Richard"), bitrate=1800)
             ani.save(save_path, writer=writer, dpi=150)
             print(f"Animation saved to {save_path}")
+            plt.close()
         else:
             return HTML(ani.to_jshtml())
 
@@ -1073,8 +1081,9 @@ class TimeSeriesEnvironment(gym.Env):
         """
         for _ in range(self.TIME_WINDOW):
             self.step(
-                np.ones(len(self.numberOfAssets) + 1) / (len(self.numberOfAssets) + 1),
+                np.ones(self.numberOfAssets + 1) / (self.numberOfAssets + 1),
                 observeReward=observeReward,
+                returnNextObs=False,
             )
         self.setIsReady(True)
 
@@ -1121,7 +1130,9 @@ class TimeSeriesEnvironment(gym.Env):
             df += noise  # make autoregressive?
             df["Return"] = df["Close"].pct_change().fillna(0)
             NOISY_PRICE_DATA[key] = df["Return"].values
-            normalisedData[key] = normData(df, actuallyNormalise=self.normaliseData)
+            normalisedData[key] = normData(
+                df, windowSize=self.TIME_WINDOW, actuallyNormalise=self.normaliseData
+            )
         self.marketData = pd.DataFrame(NOISY_PRICE_DATA)
         self.normDataTensors = {
             key: torch.tensor(df.values, dtype=torch.float32, device=device)
@@ -1155,3 +1166,10 @@ class TimeSeriesEnvironment(gym.Env):
         :return: The reward function to be used.
         """
         return self.rewardFunction
+
+    def generateAnimation(self, agentType, stage):
+        higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        file = f"{higherDir}/animations/{agentType}/{stage}/"
+        if not os.path.exists(file):
+            os.makedirs(file)
+        self.animatePortfolio(f"{file}/portfolio_animation.mp4")

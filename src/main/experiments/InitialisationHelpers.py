@@ -5,15 +5,14 @@ wandb.login()
 
 
 def initialiseWandb(yamlConfig, agent, agentConfig):
-    cfg = agentConfig
     wandb.init(
         project=yamlConfig["project_name"],
-        config=cfg,
+        config=agentConfig,
         name=f"exp-{agentConfig['phase']}"
         + ("_NORM" if yamlConfig["normalise_data"] else ""),
         reinit=True,
-        group=cfg["group"],
-        mode="disabled",
+        group=agentConfig["group"],
+        mode=yamlConfig["wandb_state"],
     )
 
     if wandb.run is not None:

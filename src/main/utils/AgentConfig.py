@@ -22,7 +22,7 @@ def createAgentFromConfig(
     # Common config base
     baseConfig = {
         "gamma": yamlConfig["agent"]["gamma"],
-        "actions_n": yamlConfig["agent"]["actions_n"],
+        "actions_n": int((numberOfFeatures - 2) / 7) + 1,  # BRAVE
         "batch_size": agentCfg.get("batch_size", 64),
         "learning_rate": yamlConfig["agent"]["learning_rate"],
         "reward_function": yamlConfig["agent"]["reward_function"],
@@ -68,7 +68,10 @@ def createAgentFromConfig(
         raise ValueError(f"Agent type '{agentType}' is not yet supported.")
 
     # Phase-specific overrides
-    if phase == "noise_testing":
+    if phase == "data_normalisation":
+        baseConfig.update({"phase": phase, "group": "Data Normalisation"})
+
+    elif phase == "noise_testing":
         baseConfig.update({"phase": phase, "group": "Noise Variation"})
 
     elif phase == "hyperparameter_tuning":
@@ -154,6 +157,7 @@ def createAgentFromConfig(
                 useEntropy=baseConfig.get("use_entropy", False),
                 useDirichlet=baseConfig.get("use_dirichlet", True),
                 log_concentration_heatmap=baseConfig.get("log_concentration", False),
+                experimentState=phase,
             ),
             "agentConfig": baseConfig,
         }
@@ -169,7 +173,8 @@ def createAgentFromConfig(
         #     policy_noise=baseConfig["policy_noise"],
         #     noise_clip=baseConfig["noise_clip"],
         #     policy_delay=baseConfig["policy_delay"],
-        #     batch_size=baseConfig["batch_size"]
+        #     batch_size=baseConfig["batch_size"],
+        # experimentState=phase,
         #     # Include other TD3-specific args
         # ), "agentConfig": baseConfig}
 

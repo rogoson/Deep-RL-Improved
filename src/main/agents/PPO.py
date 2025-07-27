@@ -15,7 +15,7 @@ from torch.nn import (
     functional as F,
 )
 from torch.distributions import Dirichlet, Independent, Normal
-
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,6 +23,7 @@ import wandb
 import torch
 import torch.nn as nn
 import warnings
+import os
 
 # Convert all UserWarnings into exceptions
 warnings.filterwarnings("error", category=UserWarning)
@@ -31,6 +32,7 @@ warnings.filterwarnings("error", category=UserWarning)
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 _SAVE_SUFFIX = "_ppo"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_ppo"
+BASE_DIR = Path(__file__).parent
 
 
 def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
@@ -216,6 +218,7 @@ class PPOAgent:
         useEntropy=False,
         useDirichlet=True,  # Whether to use Dirichlet distribution for actions (otherwise mean/std)
         log_concentration_heatmap=False,  # Whether to log concentration heatmap - depending on internet speeds, this can slow training severely (by like 3x)
+        experimentState=None,
     ):
         self.alpha = alpha
         self.policyClip = policyClip
@@ -248,6 +251,7 @@ class PPOAgent:
         self.useEntropy = useEntropy
         self.useDirichlet = useDirichlet
         self.log_concentration_heatmap = log_concentration_heatmap and useDirichlet
+        self.experimentState = experimentState
         self.actor = ActorNetwork(
             self.fc1_n,
             self.fc2_n,
@@ -476,51 +480,65 @@ class PPOAgent:
             plt.close()
         self.memory.clear()
 
-    def save(self, save_dir: str):
+    def save(self, metric: float):
         """
-        These save functions are copied from our CM30359 Coursework utlizing TD3.
+        Saves actor/critic/optimizer/featureExtractor only if `metric` beats previous best.
         """
+        sd = Path(__file__).parent / self.experimentState
+        sd.mkdir(parents=True, exist_ok=True)
 
-        torch.save(
-            self.critic.state_dict(), pathJoin(save_dir, self.critic.save_file_name)
-        )
-        torch.save(
-            self.optimizer.state_dict(),
-            pathJoin(save_dir, self.critic.optimiser_save_file_name),
-        )
+        # where we store best metric
+        metric_file = sd / "best_return.txt"
 
-        torch.save(
-            self.actor.state_dict(), pathJoin(save_dir, self.actor.save_file_name)
-        )
+        # read previous best (if exists)
+        if metric_file.exists():
+            try:
+                prev_best = float(metric_file.read_text())
+            except ValueError:
+                prev_best = None
+        else:
+            prev_best = None
 
-        torch.save(
-            self.featureExtractor.state_dict(),
-            pathJoin(save_dir, self.featureExtractor.save_file_name),
-        )
+        # decide if this metric is an improvement
+        if prev_best is None:
+            improved = True
+        else:
+            improved = metric > prev_best
+
+        if improved:
+            # persist new best
+            metric_file.write_text(f"{metric:.6f}")
+
+            # now save all sub‐modules
+            torch.save(self.critic.state_dict(), sd / self.critic.save_file_name)
+            torch.save(
+                self.optimizer.state_dict(), sd / self.critic.optimiser_save_file_name
+            )
+            torch.save(self.actor.state_dict(), sd / self.actor.save_file_name)
+            torch.save(
+                self.featureExtractor.state_dict(),
+                sd / self.featureExtractor.save_file_name,
+            )
+
+            self.best_metric = metric
+            print(f"New best return: {metric:.6f}. Checkpoints written to {sd}")
+        else:
+            print(
+                f"— No improvement in return ({metric:.6f} vs {prev_best:.6f}); skipping save."
+            )
+        return improved
 
     def load(self, save_dir: str):
+        sd = Path(__file__).parent / self.experimentState
         self.critic.load_state_dict(
-            torch.load(
-                pathJoin(save_dir, self.critic.save_file_name),
-                weights_only=True,
-            )
+            torch.load(sd / self.critic.save_file_name, weights_only=True)
         )
         self.optimizer.load_state_dict(
-            torch.load(
-                pathJoin(save_dir, self.critic.optimiser_save_file_name),
-                weights_only=True,
-            )
+            torch.load(sd / self.critic.optimiser_save_file_name, weights_only=True)
         )
-
         self.actor.load_state_dict(
-            torch.load(
-                pathJoin(save_dir, self.actor.save_file_name),
-                weights_only=True,
-            )
+            torch.load(sd / self.actor.save_file_name, weights_only=True)
         )
         self.featureExtractor.load_state_dict(
-            torch.load(
-                pathJoin(save_dir, self.featureExtractor.save_file_name),
-                weights_only=True,
-            )
+            torch.load(sd / self.featureExtractor.save_file_name, weights_only=True)
         )

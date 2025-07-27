@@ -24,12 +24,15 @@ def trainingLoop(
     envAgentInformation = env.setup(yamlConfig)
 
     # Agent Details and Initialisation
-    agent, agentConfig = createAgentFromConfig(
+    agentAndAgentConfig = createAgentFromConfig(
         agentType,
         phase=stage,
         yamlConfig=yamlConfig,
         numberOfFeatures=envAgentInformation["numberOfFeatures"],
     )
+    agent = agentAndAgentConfig["agent"]
+    agentConfig = agentAndAgentConfig["agentConfig"]
+
     initialiseWandb(yamlConfig, agent, agentConfig)
     env.setRewardFunction(agent.rewardFunction)
 
@@ -60,7 +63,7 @@ def trainingLoop(
             done = False
             while not done:
                 if not env.getIsReady():
-                    env.warmUp(env, agent.rewardFunction)
+                    env.warmUp()
                     continue
                 observation = None
                 data = env.getData()
@@ -101,7 +104,7 @@ def trainingLoop(
                         agent.train(
                             next, hiddenAndCellStates
                         )  # required for proper GAE
-                    if experimentConfig["datatype"] == "testing" and (
+                    if experimentConfig["dataType"] == "testing" and (
                         totalTimesteps % yamlConfig["test"]["learning_curve_frequency"]
                         == 0
                     ):
@@ -125,7 +128,7 @@ def trainingLoop(
                     wandb.log({"total_reward": totalReward}, commit=False)
                     previousReward = totalReward
                     if experimentConfig[
-                        "use_noise_eval"
+                        "useNoiseEval"
                     ]:  # if not doing noise testing, only evaluate once per epoch
                         if numberRun % env.datasetsAndDetails["training_windows"] == 0:
                             evaluateAgent(
@@ -155,4 +158,4 @@ def trainingLoop(
                             commit=False,
                         )
             trainingMetrics["epoch_reward"].append(totalReward)
-    return trainingMetrics if not experimentConfig["use_noise_eval"] else None
+    return trainingMetrics if not experimentConfig["useNoiseEval"] else None

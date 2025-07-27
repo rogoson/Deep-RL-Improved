@@ -57,7 +57,6 @@ def evaluateAgent(
     env,
     num,
     conf=None,
-    save=True,
     dataType="validation",
     forLearningCurve=False,
     benchmark=False,
@@ -65,20 +64,20 @@ def evaluateAgent(
     comparisonStrat=None,
     useNoiseEval=True,
     stage=None,
-    BASELINE=None,
-    RL_STRATS=None,
+    baseline=None,
+    rl_strats=None,
 ):
     """
     Docstring would be helpful.
     """
-
+    toRun = rl_strats
     if benchmark:
         """
         slightly misleading. If using the random agent as a benchmark, the random agent is seeded by that
         repetition to ensure that many random seeds are used for it
         """
         np.random.seed(env.baseSeed + epoch)
-        toRun = BASELINE
+        toRun = baseline
     if comparisonStrat is not None:
         """
         An optional comparison strategy. This is used to compare the agent's performance against an index.
@@ -88,13 +87,9 @@ def evaluateAgent(
         toRun = [strategy]
 
     for strategy in toRun:
-        rendering_config = {"enabled": True, "stage": stage, "run_id": num}
 
-        env.rendering_config = rendering_config
         env.reset()
-        env.setOutofSampledData(
-            dataType=dataType, useNoiseEval=useNoiseEval, epoch=epoch
-        )
+        env.setData(dataType=dataType, useNoiseEval=useNoiseEval, epoch=epoch)
 
         done = False
         if strategy == "PPOLSTM":
@@ -110,10 +105,10 @@ def evaluateAgent(
                     """
                     If the strategy being tested is random/PPO, warm up the environment (to ensure that they both have the same starting point)
                     """
-                    env.warmUp(env, agent.rewardFunction, False)
+                    env.warmUp(observeReward=False)
 
             observation = None
-            if strategy in RL_STRATS:
+            if strategy in rl_strats:
                 data = env.getData()  # Retrieve data
                 dataOverTime.append(data.squeeze(0)[0].detach().cpu().numpy())
                 observation, hiddenAndCellStates["feature"] = (
@@ -145,11 +140,16 @@ def evaluateAgent(
                 action, returnNextObs=False, observeReward=False
             )  # the reward is not observed during evaluation, since the agent does not learn from the data, further, nextobs is not required since no GAE
 
-        env.rendering_config = None
+        env.rendering = False
 
-        dataString = None
+        if strategy in rl_strats:
+            generateAnimation = agent.save(env.PORTFOLIO_VALUES[-1] / env.startCash)
+            if generateAnimation:
+                env.generateAnimation(
+                    agentType=agent.__class__.__name__, stage=agent.experimentState
+                )
 
-        if strategy in RL_STRATS:
+        if strategy in rl_strats:
             if LOG_ANY:
                 # Dictionary of boolean flags to data to log
                 LOG_DETAILS = {
@@ -161,7 +161,7 @@ def evaluateAgent(
         if (
             benchmark
             or strategy in NON_RL_COMPARISON_STRATEGIES
-            or (not useNoiseEval and strategy in RL_STRATS)
+            or (not useNoiseEval and strategy in rl_strats)
         ):
             # Sometimes it is necessary (when not saving models) to simply return the portfolio values
             return env.PORTFOLIO_VALUES
@@ -178,18 +178,7 @@ def evaluateAgent(
             if not os.path.exists(portFolder):
                 os.makedirs(portFolder)
 
-        if forLearningCurve:
-            filePath = f"{portFolder}{(dataString.split('|')[0]).strip()}_{num}.txt"
+            filePath = f"{portFolder}{(conf.split('|')[0]).strip()}_{num}.txt"
             np.savetxt(filePath, env.PORTFOLIO_VALUES, fmt="%f")
-
-        # # Likely want to implement some "if best agent logic" here
-        """
-        TO BE IMPLEMENTED: Save the agent if it is the best agent so far.
-        """
-        # if (strategy in RL_STRATS) and save:
-        #     saveFolder = "NONE"
-        #     if not os.path.exists(saveFolder):
-        #         os.makedirs(saveFolder)
-        #     agent.save(saveFolder)
 
     return env.PORTFOLIO_VALUES  # VERY hacky - returns portfolio values for rl strat
