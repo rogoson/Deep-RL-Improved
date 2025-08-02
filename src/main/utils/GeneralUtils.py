@@ -39,7 +39,7 @@ def normData(df, windowSize=0, actuallyNormalise=True):
 
 def getFileWritingLocation(directory="main"):
     fileWritingLocation = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "plotsAndPorftolioTrajectories")
+        os.path.join(os.path.dirname(__file__), "..", "plotsAndPortfolioTrajectories")
     )
     if directory != "main":
         fileWritingLocation = fileWritingLocation.replace("main", "tests")

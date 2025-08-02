@@ -46,15 +46,15 @@ def createAgentFromConfig(
                 "use_entropy": agentCfg.get("use_entropy", False),
                 "use_dirichlet": agentCfg.get("use_dirichlet", True),
                 "log_concentration": agentCfg.get("log_concentration", False),
+                "lstm_hidden_size": {
+                    "actor": agentCfg["actor_critic_hidden_state_size"],
+                    "critic": agentCfg["actor_critic_hidden_state_size"],
+                    "feature": yamlConfig["feature_extractors"]["lstm"][
+                        "default_hidden_size"
+                    ],
+                },
             }
         )
-
-        hidden_sizes = {
-            "actor": agentCfg["actor_critic_hidden_state_size"],
-            "critic": agentCfg["actor_critic_hidden_state_size"],
-            "feature": agentCfg["feature_output_size"],
-        }
-        baseConfig["lstm_hidden_sizes"] = hidden_sizes
 
     elif agentType == "td3":
         pass
@@ -122,8 +122,8 @@ def createAgentFromConfig(
     if featureExtractor is None and agentType == "ppo":
         featureExtractor = LstmFeatureExtractor(
             baseConfig["number_of_features"],
-            lstmHiddenSize=baseConfig["lstm_hidden_sizes"]["feature"],
-            lstmOutputSize=128,  # Default
+            lstmHiddenSize=baseConfig["lstm_hidden_size"]["feature"],
+            lstmOutputSize=baseConfig.get("lstm_output_size", 128),  # Default
         )
 
     # === AGENT CREATION ===
@@ -135,7 +135,9 @@ def createAgentFromConfig(
                 alpha=baseConfig["learning_rate"],
                 policyClip=baseConfig.get("clip_param", 0.2),
                 gamma=baseConfig.get("gamma", 0.99),
-                lstmHiddenSizeDictionary=baseConfig.get("lstm_hidden_sizes"),
+                lstmHiddenSizeDictionary=baseConfig.get(
+                    "lstm_hidden_size", None
+                ),  # goes boom boom if missing
                 actor_noise=baseConfig.get("actor_noise", 0),
                 batch_size=baseConfig["batch_size"],
                 fc1_n=baseConfig.get("fc1_n", 128),

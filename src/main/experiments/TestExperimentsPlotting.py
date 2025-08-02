@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .MetricComputations import scoreFormula, maxDrawdown
 from main.utils.TabulationUtils import tabulate_neatly
+from main.utils.GeneralUtils import getFileWritingLocation
 
 
 def plotLearningCurves(
@@ -20,7 +21,7 @@ def plotLearningCurves(
         timeSteps = []
 
         for rewardFunc in rewardFunctions:
-            file = f"portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
+            file = f"{getFileWritingLocation(yamlConfig["source_folder"])}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
             cumReturns = []
             scores = []
             for i in range(1, yamlConfig["test"]["learning_curve_frequency"]):
@@ -89,8 +90,12 @@ def plotLearningCurves(
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"plots/Cumulative_Returns_Seed{seed}")
-        plt.show()
+        plt.savefig(
+            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Cumulative_Returns_Seed{seed}"
+        )
+        plt.show(block=False)
+        plt.pause(2)
+        plt.close()
 
         # Plot scores for this seed
         plt.figure(figsize=FIG_SIZE)
@@ -122,8 +127,12 @@ def plotLearningCurves(
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"plots/Scores_Seed{seed}")
-        plt.show()
+        plt.savefig(
+            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Scores_Seed{seed}"
+        )
+        plt.show(block=False)
+        plt.pause(2)
+        plt.close()
     return bestTestSetPerformance
 
 
@@ -175,7 +184,7 @@ def bestPerformancesAndStandardDeviations(
         for seed in yamlConfig["varied_base_seeds"]:
             traj = (
                 np.array(bestTestSetPerformance[(rewardFunc, seed)][-1])
-                / yamlConfig["start_cash"]
+                / yamlConfig["env"]["start_cash"]
                 * 100
                 - 100
             )
@@ -213,7 +222,7 @@ def bestPerformancesAndStandardDeviations(
             linewidth=2.5,
         )
         plt.plot(
-            np.array(averPerformance) / yamlConfig["start_cash"] * 100 - 100,
+            np.array(averPerformance) / yamlConfig["env"]["start_cash"] * 100 - 100,
             label="Random (Baseline)",
             color="grey",
         )
@@ -240,8 +249,12 @@ def bestPerformancesAndStandardDeviations(
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f"plots/Cumulative_Returns_Mean_{safe_filename}")
-        plt.show()
+        plt.savefig(
+            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Cumulative_Returns_Mean_{safe_filename}"
+        )
+        plt.show(block=False)
+        plt.pause(2)
+        plt.close()
 
 
 ########
@@ -258,7 +271,7 @@ def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, re
         for seed in yamlConfig["varied_base_seeds"]:
             traj = np.array(bestTestSetPerformance[(rewardFunc, seed)][-1])
             normTraj = (
-                traj / yamlConfig["start_cash"] * 100 - 100
+                traj / yamlConfig["env"]["start_cash"] * 100 - 100
             )  # Percentage returns for plotting
             allTrajectories.append(normTraj)
 
@@ -318,8 +331,14 @@ def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, re
 
 
 def finalIndexComparisonPlot(
-    yamlConfig, bestTestSetPerformance, averPerformance, benchmarkPortVals, rewards
+    yamlConfig,
+    bestTestSetPerformance,
+    averPerformance,
+    benchmarkPortVals,
+    rewards,
+    FIG_SIZE=(12, 8),
 ):
+    plt.figure(figsize=FIG_SIZE)
     availableColors = ["purple", "darkgreen", "darkgray", "black", "navy"]
     colorCycle = cycle(availableColors)
     # Plot mean RL trajectories across seeds
@@ -328,7 +347,7 @@ def finalIndexComparisonPlot(
         for seed in yamlConfig["varied_base_seeds"]:
             traj = (
                 np.array(bestTestSetPerformance[(rewardFunc, seed)][-1])
-                / yamlConfig["start_cash"]
+                / yamlConfig["env"]["start_cash"]
                 * 100
                 - 100
             )
@@ -351,11 +370,11 @@ def finalIndexComparisonPlot(
         plt.plot(timesteps, meanTrajectory, label=f"{plottedName} (Mean)", linewidth=1)
 
     for key, value in benchmarkPortVals.items():
-        traj = np.array(value) / yamlConfig["start_cash"] * 100 - 100
+        traj = np.array(value) / yamlConfig["env"]["start_cash"] * 100 - 100
         color = next(colorCycle)
         plt.plot(traj, label=key, color=color, linewidth=1)
     plt.plot(
-        np.array(averPerformance) / yamlConfig["start_cash"] * 100 - 100,
+        np.array(averPerformance) / yamlConfig["env"]["start_cash"] * 100 - 100,
         label="Random (Baseline)",
         color="grey",
     )
@@ -367,5 +386,9 @@ def finalIndexComparisonPlot(
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("plots/Mean_Returns_vs_Indices")
-    plt.show()
+    plt.savefig(
+        f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Mean_Returns_vs_Indices"
+    )
+    plt.show(block=False)
+    plt.pause(2)
+    plt.close()

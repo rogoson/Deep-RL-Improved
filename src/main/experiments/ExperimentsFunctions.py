@@ -21,11 +21,12 @@ import numpy as np
 
 
 def normalisationEffectExperiment(
-    yamlConfig, agentType="ppo", phase="data_normalisation", sourceFolder="main"
+    yamlConfig, agentType="ppo", phase="data_normalisation"
 ):
     """
     Test the effect of normalisation on the agent's performance.
     """
+    sourceFolder = yamlConfig["source_folder"]
     portfolioValues = dict()
     for isNormalised in [True, False]:
         normFolder = (
@@ -38,6 +39,7 @@ def normalisationEffectExperiment(
 
             yamlConfig["perturbation_noise"] = 0
             yamlConfig["normalise_data"] = isNormalised
+            yamlConfig["env"]["base_seed"] = s
 
             print("*" * 50)
             print("Testing Seed: ", s)
@@ -79,13 +81,11 @@ def normalisationEffectExperiment(
     )
 
 
-def noiseTestingExperiment(
-    yamlConfig, agentType="ppo", phase="noise_testing", sourceFolder="main"
-):
+def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
     """
     Test different levels of noise for the agent
     """
-
+    sourceFolder = yamlConfig["source_folder"]
     portfolioValues = dict()
     yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
     noiseFolder = (
@@ -99,6 +99,7 @@ def noiseTestingExperiment(
         for noise in yamlConfig["noises"]:
 
             yamlConfig["perturbation_noise"] = noise
+            yamlConfig["env"]["base_seed"] = s
 
             print("*" * 50)
             print("Testing Noise: ", noise)
@@ -118,7 +119,6 @@ def noiseTestingExperiment(
             )
             print("*" * 50)
             wandb.finish()
-            os.makedirs("plots", exist_ok=True)
     runNoiseComparison(yamlConfig, env)
 
 
@@ -149,6 +149,7 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
         for s in yamlConfig["varied_base_seeds"]:
             BASE_SEED = s
             seed(BASE_SEED)
+            yamlConfig["env"]["base_seed"] = s
             for testType, active in TESTING.items():
                 if active and testType in sweepParams:
                     param_info = sweepParams[testType]
@@ -178,14 +179,16 @@ def getRandomMetrics(yamlConfig, dataType="validation", randomRepeats=1000):
     """
     Returns metrics for a random agent.
     """
-    variedBaseSeeds = yamlConfig["varied_base_seeds"]
+    variedBaseSeeds = yamlConfig["varied_base_seeds"].copy()
     experimentConfig = setUpEvaluationConfig(yamlConfig, "random")
     averageRandomPerformance = []
     env = getEnv(yamlConfig)
+    env.setup(yamlConfig)
     for rep in range(randomRepeats):
-        if rep % (randomRepeats // len(variedBaseSeeds) == 0 and variedBaseSeeds):
+        if rep % randomRepeats // len(variedBaseSeeds) == 0 and variedBaseSeeds:
             BASE_SEED = variedBaseSeeds.pop()
             seed(BASE_SEED)  # Seed the random agent with the base seed
+            env.baseSeed = BASE_SEED
         randomArray = evaluateAgent(
             agent=None, env=env, num=0, conf=None, epoch=rep, **experimentConfig
         )
@@ -210,7 +213,10 @@ def getRandomMetrics(yamlConfig, dataType="validation", randomRepeats=1000):
 def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
     randomMetrics = getRandomMetrics(yamlConfig, dataType="testing", randomRepeats=1000)
     bestTestSetPerformance = plotLearningCurves(
-        rewards, envDetails["sum_test_training_periods"]
+        yamlConfig=yamlConfig,
+        randomMetrics=randomMetrics,
+        rewardFunctions=rewards,
+        sumTestTrainingPeriods=envDetails["sum_test_training_periods"],
     )
     tabulateBestTestSetPerformance(
         yamlConfig, bestTestSetPerformance, rewards, randomMetrics
@@ -223,8 +229,8 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
     )
     meanStatisticsTabulated(
         yamlConfig=yamlConfig,
-        bestTestsetPerformance=bestTestSetPerformance,
-        randomMetrics=randomMetrics["average_random_performance"],
+        bestTestSetPerformance=bestTestSetPerformance,
+        avRandReturn=randomMetrics["average_random_performance"],
         rewards=rewards,
     )
 
@@ -232,13 +238,13 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
     env = getEnv(yamlConfig)
     comparisonStrategies = env.setup(yamlConfig)["comparisonStrategies"]
     benchmarkportfolioValues = dict()
-    for strat, vec in comparisonStrategies:
+    for strat, vec in comparisonStrategies.items():
+        experimentConfig["comparisonStrat"] = [strat, vec]
         benchmarkportfolioValues[strat] = evaluateAgent(
             agent=None,
             env=env,
             num=0,
             conf=None,
-            comparisonStrat=(strat, vec),
             **experimentConfig,
         )
 
@@ -246,13 +252,13 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
         yamlConfig,
         bestTestSetPerformance,
         randomMetrics["average_random_performance"],
-        benchmarkportfolioValues=benchmarkportfolioValues,
+        benchmarkPortVals=benchmarkportfolioValues,
         rewards=rewards,
     )
 
 
 # this will actually test them too lol
-def trainTestingAgents(yamlConfig, agentType, phase="reward_testing"):
+def trainTestingAgents(yamlConfig, agentType="ppo", phase="reward_testing"):
     REWARDS = {
         "Reward": [
             "Standard Logarithmic Returns",
@@ -269,6 +275,7 @@ def trainTestingAgents(yamlConfig, agentType, phase="reward_testing"):
     for s in yamlConfig["varied_base_seeds"]:
         BASE_SEED = s
         seed(BASE_SEED)  # Seed agent initialization
+        yamlConfig["env"]["base_seed"] = s
         for rew in REWARDS["Reward"]:
             env = getEnv(yamlConfig)
             trainingLoop(

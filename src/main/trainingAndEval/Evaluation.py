@@ -9,7 +9,7 @@ NON_RL_COMPARISON_STRATEGIES = [
     "SENSEX Buy-and-Hold",
     "FTSE 100 Buy-and-Hold",
     "S&P 500 Buy-and-Hold",
-    "All Stocks Buy-and-Hold",
+    "ALL Buy-and-Hold",
 ]
 
 LOG_OBSERVATIONS = False
@@ -66,6 +66,7 @@ def evaluateAgent(
     stage=None,
     baseline=None,
     rl_strats=None,
+    sourceFolder=None,
 ):
     """
     Docstring would be helpful.
@@ -88,7 +89,7 @@ def evaluateAgent(
 
     for strategy in toRun:
 
-        env.reset()
+        env.reset(evalType=dataType)
         env.setData(dataType=dataType, useNoiseEval=useNoiseEval, epoch=epoch)
 
         done = False
@@ -158,6 +159,21 @@ def evaluateAgent(
                 }
                 logDetails(LOG_DETAILS)
 
+        """
+        The below is a lot of 'saving' code, for saving models and portfolio trajectories where necessary
+        """
+
+        if forLearningCurve:
+            portFolder = (
+                getFileWritingLocation(sourceFolder)
+                + f"/portfolios/{dataType}/forLearningCurve{env.baseSeed}/"
+            )
+            if not os.path.exists(portFolder):
+                os.makedirs(portFolder)
+
+            filePath = f"{portFolder}{(conf.split('|')[0]).strip()}_{num}.txt"
+            np.savetxt(filePath, env.PORTFOLIO_VALUES, fmt="%f")
+
         if (
             benchmark
             or strategy in NON_RL_COMPARISON_STRATEGIES
@@ -165,20 +181,5 @@ def evaluateAgent(
         ):
             # Sometimes it is necessary (when not saving models) to simply return the portfolio values
             return env.PORTFOLIO_VALUES
-
-        """
-        The below is a lot of 'saving' code, for saving models and portfolio trajectories where necessary
-        """
-
-        if forLearningCurve:
-            portFolder = (
-                getFileWritingLocation()
-                + f"plotsAndPorftolioTrajectories/portfolios/{dataType}/forLearningCurve{env.baseSeed}/"
-            )
-            if not os.path.exists(portFolder):
-                os.makedirs(portFolder)
-
-            filePath = f"{portFolder}{(conf.split('|')[0]).strip()}_{num}.txt"
-            np.savetxt(filePath, env.PORTFOLIO_VALUES, fmt="%f")
 
     return env.PORTFOLIO_VALUES  # VERY hacky - returns portfolio values for rl strat

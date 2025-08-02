@@ -133,6 +133,7 @@ def plotNormalisationExpPerformance(
     if saveFile:
         plt.savefig(saveFile)
     plt.show()
+    plt.close()
     return fig
 
 
@@ -235,7 +236,7 @@ def plotNoiseComparison(yamlConfig, noiseLevel, env):
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"plots/noiseComparison_sigma_{noiseLevel}.png")
+    plt.savefig(f"{baseFolder}/plots/noiseComparison_sigma_{noiseLevel}.png")
     plt.close()
     print(f"Saved plot for σ={noiseLevel}.")
 

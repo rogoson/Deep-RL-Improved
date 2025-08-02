@@ -32,7 +32,7 @@ def maxDrawdown(arr):
 # Scoring Formula
 def scoreFormula(agentArray, averageRandomReturn, yamlConfig):
     # score by (cumulative return - average random return)/max drawdown all times sharpe ratio
-    cumulativeReturn = agentArray[-1] / yamlConfig["start_cash"] - 1
+    cumulativeReturn = agentArray[-1] / yamlConfig["env"]["start_cash"] - 1
     maximumDrawdown = maxDrawdown(agentArray)
     percChange = np.diff(agentArray) / agentArray[:-1]
     sharpe = np.mean(percChange) / np.std(percChange) if np.std(percChange) != 0 else 0

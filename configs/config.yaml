@@ -6,6 +6,7 @@ baseline: ["RANDOM"]
 varied_base_seeds: [1, 3, 5, 7, 9]
 normalise_data: false
 wandb_state: "disabled"
+source_folder: "main"
 noises:
   [0, 0.001, 0.002, 0.004, 0.005, 0.006, 0.008, 0.01, 0.02, 0.05, 0.1, 0.2]
 
@@ -41,6 +42,10 @@ agent:
     learning_frequency: 24
     actor_critic_hidden_state_size: 512
     strategy: "PPOLSTM"
+
+feature_extractors:
+  lstm:
+    default_hidden_size: 128
 
 hyperparameters:
   feature_output_sizes: [32, 64, 128, 256, 512]

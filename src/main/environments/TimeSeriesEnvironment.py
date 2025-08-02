@@ -1,11 +1,8 @@
 import numpy as np
 import gymnasium as gym
 import torch
-import matplotlib.pyplot as plt
-from IPython.display import HTML
 import os
 import warnings
-from matplotlib.animation import FuncAnimation, FFMpegWriter
 from main.utils.GeneralUtils import normData
 from pathlib import Path
 import pandas as pd
@@ -13,6 +10,8 @@ import yfinance as yf
 from functools import reduce
 import talib as ta
 from datetime import datetime
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 # Convert all UserWarnings into exceptions
@@ -221,12 +220,16 @@ class TimeSeriesEnvironment(gym.Env):
 
         today = datetime.today().strftime("%Y-%m-%d")
         # Create and write to a file
-        print(str(BASE_DIR))
         if os.path.exists(BASE_DIR / "lastDownloaded.txt"):
-            with open(BASE_DIR / "lastDownloaded.txt", "r") as file:
+            with open(BASE_DIR / "lastDownloaded.txt", "r+") as file:
                 date = file.readline().strip()
                 if date == today:
                     redownloadData = False
+                else:
+                    file.seek(0)
+                    file.write(f"{today}\n")
+                    file.truncate()
+
         else:
             with open(BASE_DIR / "lastDownloaded.txt", "w") as file:
                 file.write(f"{today}\n")
@@ -682,23 +685,22 @@ class TimeSeriesEnvironment(gym.Env):
     ):  # if random, no need to return next obs
         newPortfolioValue = self.calculatePortfolioValue(
             action,
-            self.marketData.iloc[self.timeStep + 1].values,
+            self.marketData.iloc[
+                self.timeStep + 1
+            ].values,  # issue must be something like the data is not cached to be re-set - need to save prior env state (portfolio values, market data etc)
         )
-        absolutePortfolioDifference = (
-            newPortfolioValue - self.PORTFOLIO_VALUES[-1]
-        )  # this variable name should probably change man
+        absolutePortfolioDifference = newPortfolioValue - self.PORTFOLIO_VALUES[-1]
         self.timeStep += 1
         info = dict()
 
         done = False
 
-        # below not really needed if using indexes [virtually impossible to lose all your money]
-        if newPortfolioValue / self.startCash < 0.7:
-            done = True
-            info["reason"] = "portfolio_below_70%"
-        elif self.timeStep + 1 == self.episodeLength:
+        if self.timeStep + 1 == self.episodeLength:
             done = True
             info["reason"] = "max_steps_reached"
+        elif newPortfolioValue / self.startCash < 0.7:
+            done = True
+            info["reason"] = "portfolio_below_70%"
 
         self.PORTFOLIO_DIFFERENCES.append(absolutePortfolioDifference)
         self.PORTFOLIO_VALUES.append(newPortfolioValue)
@@ -894,6 +896,7 @@ class TimeSeriesEnvironment(gym.Env):
         episode=0,
         epoch=0,
         evalType="validation",
+        pushWindow=False,
     ):
         super().reset(seed=seed)
         self.timeStep = 0
@@ -905,7 +908,8 @@ class TimeSeriesEnvironment(gym.Env):
         self.PORTFOLIO_DIFFERENCES = [0]
         self.meanReturn = None
         self.meanSquaredReturn = None
-        self.pushTrainingWindow(episode=episode, epoch=epoch, evalType=evalType)
+        if pushWindow:
+            self.pushTrainingWindow(episode=episode, epoch=epoch, evalType=evalType)
 
     def calculatePortfolioValue(self, targetAllocation, closingPriceChanges):
         """
@@ -1066,13 +1070,10 @@ class TimeSeriesEnvironment(gym.Env):
             fig, update, frames=len(self.PORTFOLIO_VALUES), repeat=False
         )
 
-        if save_path:
-            writer = FFMpegWriter(fps=10, metadata=dict(artist="Richard"), bitrate=1800)
-            ani.save(save_path, writer=writer, dpi=150)
-            print(f"Animation saved to {save_path}")
-            plt.close()
-        else:
-            return HTML(ani.to_jshtml())
+        writer = FFMpegWriter(fps=10, metadata=dict(artist="Richard"), bitrate=1800)
+        ani.save(save_path, writer=writer, dpi=150)
+        print(f"Animation saved to {save_path}")
+        plt.close(fig)
 
     def warmUp(self, observeReward=True):
         """

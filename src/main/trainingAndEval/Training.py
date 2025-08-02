@@ -1,5 +1,6 @@
 import wandb
 import time
+import copy
 from main.agents.CommonAgentFunctions import hiddenStateReset, storeExperiences
 from main.utils.AgentConfig import createAgentFromConfig
 from .Evaluation import evaluateAgent
@@ -29,6 +30,7 @@ def trainingLoop(
         phase=stage,
         yamlConfig=yamlConfig,
         numberOfFeatures=envAgentInformation["numberOfFeatures"],
+        optionalHyperConfig=optionalHyperConfig,
     )
     agent = agentAndAgentConfig["agent"]
     agentConfig = agentAndAgentConfig["agentConfig"]
@@ -56,9 +58,20 @@ def trainingLoop(
         """
         previousReward = 0
         totalReward = 0
-        for episode in range(env.datasetsAndDetails["training_windows"]):
+        for episode in range(
+            env.datasetsAndDetails[
+                (
+                    "training_windows"
+                    if stage != "reward_testing"
+                    else "test_training_windows"
+                )
+            ]
+        ):
             print("Episode:", episode)
-            env.reset()
+            env.reset(  # gotta have so much faith in this
+                evalType="validation" if stage != "reward_testing" else "testing",
+                pushWindow=True,
+            )
             hiddenAndCellStates = hiddenStateReset(agent)
             done = False
             while not done:
@@ -108,6 +121,9 @@ def trainingLoop(
                         totalTimesteps % yamlConfig["test"]["learning_curve_frequency"]
                         == 0
                     ):
+                        temporaryEnvState = copy.deepcopy(
+                            env.__dict__
+                        )  # bad design - pausing unfinished run
                         learningCurveValues = evaluateAgent(
                             agent=agent,
                             env=env,
@@ -122,6 +138,8 @@ def trainingLoop(
                             },
                             commit=False,
                         )
+                        env.__dict__.clear()  # restoring unfinished run
+                        env.__dict__.update(temporaryEnvState)
                 if done:
                     numberRun += 1
                     print("Episode Reward:", totalReward - previousReward)
