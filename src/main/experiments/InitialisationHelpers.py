@@ -16,9 +16,19 @@ def initialiseWandb(yamlConfig, agent, agentConfig):
     )
 
     if wandb.run is not None:
-        wandb.watch(agent.actor, log="all")
-        wandb.watch(agent.critic, log="all")
-        wandb.watch(agent.featureExtractor, log="all")
+        if agentConfig["strategy"] == "PPOLSTM":
+            wandb.watch(agent.actor, log="all")
+            wandb.watch(agent.critic, log="all")
+            wandb.watch(agent.featureExtractor, log="all")
+        elif agentConfig["strategy"] == "TD3":
+            wandb.watch(agent.actor, log="all")
+            wandb.watch(agent.critic, log="all")
+            wandb.watch(agent.critic2, log="all")
+            wandb.watch(agent.featureExtractor, log="all")
+            wandb.watch(agent.targetActor, log="all")
+            wandb.watch(agent.targetCritic, log="all")
+            wandb.watch(agent.targetCritic2, log="all")
+            wandb.watch(agent.targetFeatureExtractor, log="all")
 
 
 def getEnv(yamlConfig):

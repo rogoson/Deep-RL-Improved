@@ -38,8 +38,10 @@ def trainingLoop(
     initialiseWandb(yamlConfig, agent, agentConfig)
     env.setRewardFunction(agent.rewardFunction)
 
-    experimentConfig = setUpEvaluationConfig(yamlConfig, stage)
     strategy = yamlConfig["agent"][agentType]["strategy"]
+    experimentConfig = setUpEvaluationConfig(
+        yamlConfig, stage, currentStrategy=strategy
+    )
 
     trainingMetrics = {
         "epoch_reward": [],  # to store validtion set peformances when noise testing
@@ -80,43 +82,75 @@ def trainingLoop(
                     continue
                 observation = None
                 data = env.getData()
-                if strategy == "PPOLSTM":
+                if strategy in yamlConfig["rl_strats"]:
                     prevHiddenAndCellStates = (
                         hiddenAndCellStates.copy()
                     )  # save previous hidden and cell states (for storing)
                 observation, hiddenAndCellStates["feature"] = (
                     agent.featureExtractor.forward(data, hiddenAndCellStates["feature"])
                 )
-                probabilities, valuation = None, None
-                if strategy == "PPOLSTM":
-                    action, probabilities, valuation, actorHidden, criticHidden = (
-                        agent.select_action(
-                            observation, hiddenAndCellStates, returnHidden=True
+                if strategy == "TD3":
+                    _, hiddenAndCellStates["targetFeature"] = (
+                        agent.targetFeatureExtractor.forward(
+                            data, hiddenAndCellStates["targetFeature"]
                         )
                     )
-                    hiddenAndCellStates["actor"] = actorHidden  # returned from agent
-                    hiddenAndCellStates["critic"] = criticHidden
+
+                if strategy in yamlConfig["rl_strats"]:
+                    action = None
+                    probabilities, valuation = None, None
+                    if strategy == "PPOLSTM":
+                        action, probabilities, valuation, actorHidden, criticHidden = (
+                            agent.select_action(
+                                observation, hiddenAndCellStates, returnHidden=True
+                            )
+                        )
+
+                        hiddenAndCellStates["critic"] = criticHidden
+                    elif strategy == "TD3":
+                        (
+                            action,
+                            actorHidden,
+                            criticHidden,
+                            critic2Hidden,
+                            targetActorHidden,
+                            targetCriticHidden,
+                            targetCritic2Hidden,
+                        ) = agent.select_action(
+                            observation, hiddenAndCellStates, returnHidden=True
+                        )
+
+                        hiddenAndCellStates["critic"] = criticHidden
+                        hiddenAndCellStates["critic2"] = critic2Hidden
+                        hiddenAndCellStates["targetActor"] = targetActorHidden
+                        hiddenAndCellStates["targetCritic"] = targetCriticHidden
+                        hiddenAndCellStates["targetCritic2"] = targetCritic2Hidden
+                    hiddenAndCellStates["actor"] = actorHidden
+
                 next, reward, done, _, info = env.step(action)
                 totalReward += reward
                 totalTimesteps += 1
                 if strategy in yamlConfig["rl_strats"]:
                     storeExperiences(
-                        agent,
-                        data,
-                        reward,
-                        done,
-                        strategy,
-                        action,
-                        probabilities,
-                        valuation,
-                        prevHiddenAndCellStates if strategy == "PPOLSTM" else None,
+                        agent=agent,
+                        data=data,  # raw observation matrix
+                        reward=reward,
+                        nextData=next,  # needs to be gracefully handled
+                        done=done,
+                        strategy=strategy,
+                        action=action,
+                        probabilities=probabilities,
+                        valuation=valuation,
+                        hiddenAndCellStates=(prevHiddenAndCellStates),
                     )
-                    if (
-                        agent.memory.ptr % agent.memory.maxSize == 0
-                    ):  # Train when the batch is full - following Zou et al. (2024) with their single epoch training loop.
-                        agent.train(
-                            next, hiddenAndCellStates
-                        )  # required for proper GAE
+                    if strategy == "PPOLSTM":
+                        if agent.memory.ptr % agent.memory.maxSize == 0:
+                            agent.learn(
+                                next, hiddenAndCellStates
+                            )  # required for proper GAE for ppo
+                    elif strategy == "TD3":
+                        if agent.memory.ptr >= agent.batchSize:
+                            agent.learn()
                     if experimentConfig["dataType"] == "testing" and (
                         totalTimesteps % yamlConfig["test"]["learning_curve_frequency"]
                         == 0

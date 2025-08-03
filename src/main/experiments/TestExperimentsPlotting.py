@@ -11,6 +11,7 @@ def plotLearningCurves(
     rewardFunctions,
     randomMetrics,
     sumTestTrainingPeriods,
+    agentType="ppo",
     WINDOW=5,
     FIG_SIZE=(12, 8),
 ):
@@ -21,7 +22,7 @@ def plotLearningCurves(
         timeSteps = []
 
         for rewardFunc in rewardFunctions:
-            file = f"{getFileWritingLocation(yamlConfig["source_folder"])}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
+            file = f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
             cumReturns = []
             scores = []
             for i in range(1, yamlConfig["test"]["learning_curve_frequency"]):
@@ -91,7 +92,7 @@ def plotLearningCurves(
         plt.legend()
         plt.tight_layout()
         plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Cumulative_Returns_Seed{seed}"
+            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Cumulative_Returns_Seed{seed}"
         )
         plt.show(block=False)
         plt.pause(2)
@@ -128,7 +129,7 @@ def plotLearningCurves(
         plt.legend()
         plt.tight_layout()
         plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Scores_Seed{seed}"
+            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Scores_Seed{seed}"
         )
         plt.show(block=False)
         plt.pause(2)
@@ -177,7 +178,7 @@ def tabulateBestTestSetPerformance(
 
 
 def bestPerformancesAndStandardDeviations(
-    yamlConfig, bestTestSetPerformance, averPerformance, rewards
+    yamlConfig, bestTestSetPerformance, averPerformance, rewards, agentType="ppo"
 ):
     for rewardFunc in rewards:
         allTrajectories = []
@@ -250,7 +251,7 @@ def bestPerformancesAndStandardDeviations(
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Cumulative_Returns_Mean_{safe_filename}"
+            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Cumulative_Returns_Mean_{safe_filename}"
         )
         plt.show(block=False)
         plt.pause(2)
@@ -336,6 +337,7 @@ def finalIndexComparisonPlot(
     averPerformance,
     benchmarkPortVals,
     rewards,
+    agentType="ppo",
     FIG_SIZE=(12, 8),
 ):
     plt.figure(figsize=FIG_SIZE)
@@ -387,7 +389,7 @@ def finalIndexComparisonPlot(
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(
-        f"{getFileWritingLocation(yamlConfig["source_folder"])}/plots/Mean_Returns_vs_Indices"
+        f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Mean_Returns_vs_Indices"
     )
     plt.show(block=False)
     plt.pause(2)

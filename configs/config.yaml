@@ -1,7 +1,7 @@
 project_name: "RL-Portfolio-Management_IMPROVEMENTS"
 epochs: 25
 time_window: 30
-rl_strats: ["PPOLSTM"]
+rl_strats: ["PPOLSTM", "TD3"]
 baseline: ["RANDOM"]
 varied_base_seeds: [1, 3, 5, 7, 9]
 normalise_data: false
@@ -22,12 +22,13 @@ env:
 
 agent:
   gamma: 0.99
-  learning_rate: 0.0003
   reward_function: "Standard Logarithmic Returns"
+  actor_critic_hidden_state_size: 512
   ppo:
     gae_lambda: 0.98
     clip_param: 0.2
     batch_size: 24
+    learning_rate: 0.0003
     fc1_n: 128
     fc2_n: 128
     feature_output_size: 128
@@ -40,12 +41,23 @@ agent:
     log_concentration: false
     use_normals: false # likely requires softmax; dividing may not work for short selling
     learning_frequency: 24
-    actor_critic_hidden_state_size: 512
     strategy: "PPOLSTM"
+  td3:
+    alpha: 0.001
+    beta: 0.001
+    tau: 0.005
+    batch_size: 100
+    fc1_n: 512
+    fc2_n: 384
+    actor_noise: 0.01
+    number_of_updates: 2
+    target_noise: 0.01
+    strategy: "TD3"
 
 feature_extractors:
   lstm:
     default_hidden_size: 128
+    return_hidden_state: True
 
 hyperparameters:
   feature_output_sizes: [32, 64, 128, 256, 512]

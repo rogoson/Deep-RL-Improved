@@ -5,7 +5,6 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 _SAVE_SUFFIX = "_lstm"
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
-RETURN_HIDDEN_STATE = False # normatively off - doesn't make sense
 
 
 class LstmFeatureExtractor(BaseFeaturesExtractor):
@@ -23,6 +22,7 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         numFeatures,
         lstmHiddenSize=128,
         lstmOutputSize=128,
+        returnHiddenState=False,
         modelName="featureExtractor",
     ):
         super(LstmFeatureExtractor, self).__init__(
@@ -32,16 +32,18 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         self.lstmOutputSize = lstmOutputSize
         self.modelName = modelName
         self.save_file_name = self.modelName + _SAVE_SUFFIX
+        self.returnHiddenState = returnHiddenState
 
         self.featureLSTM = LSTM(
             input_size=numFeatures,
             hidden_size=lstmHiddenSize,
             num_layers=1,
             batch_first=True,
+            device=device,
         )
-        self.featureExtractorfc1 = Linear(lstmHiddenSize, lstmHiddenSize)
-        self.featureExtractorfc2 = Linear(lstmHiddenSize, lstmHiddenSize)
-        self.featureExtractorfc3 = Linear(lstmHiddenSize, lstmOutputSize)
+        self.featureExtractorfc1 = Linear(lstmHiddenSize, lstmHiddenSize, device=device)
+        self.featureExtractorfc2 = Linear(lstmHiddenSize, lstmHiddenSize, device=device)
+        self.featureExtractorfc3 = Linear(lstmHiddenSize, lstmOutputSize, device=device)
         self.tanh = Tanh()
 
     def forward(self, x, hiddenState=None):
@@ -57,11 +59,12 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
 
         if hiddenState is None:
             hiddenState = self.initHidden(batchSize=x.size(0))
+        self.featureLSTM.flatten_parameters()
         _, (hidden, cell) = self.featureLSTM(x, hiddenState)
         features = self.tanh(self.featureExtractorfc1(hidden[-1]))
         features = self.tanh(self.featureExtractorfc2(features))
         features = self.tanh(self.featureExtractorfc3(features))
-        return features, ((hidden, cell) if RETURN_HIDDEN_STATE else hiddenState)
+        return features, ((hidden, cell) if self.returnHiddenState else hiddenState)
 
     def initHidden(self, batchSize=1):
         # reset hidden states

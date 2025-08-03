@@ -1,4 +1,4 @@
-def setUpEvaluationConfig(yamlConfig, stage):
+def setUpEvaluationConfig(yamlConfig, stage, currentStrategy=None):
 
     experimentConfig = yamlConfig["experiments"].get(stage, {})
     finalConfig = {
@@ -10,6 +10,7 @@ def setUpEvaluationConfig(yamlConfig, stage):
         "baseline": yamlConfig.get("baseline"),
         "rl_strats": yamlConfig.get("rl_strats"),
         "sourceFolder": experimentConfig.get("sourceFolder", "main"),
+        "strategy": currentStrategy,
     }
 
     return finalConfig

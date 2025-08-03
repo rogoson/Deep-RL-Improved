@@ -30,7 +30,7 @@ def normalisationEffectExperiment(
     portfolioValues = dict()
     for isNormalised in [True, False]:
         normFolder = (
-            getFileWritingLocation(sourceFolder)
+            getFileWritingLocation(sourceFolder, agentType)
             + f"/portfolios/{'Normalisation' if isNormalised else 'NonNormalisation'}/"
         )
         for s in yamlConfig["varied_base_seeds"]:
@@ -62,7 +62,7 @@ def normalisationEffectExperiment(
             print("*" * 50)
             wandb.finish()
     print("Normalisation Effect Experiment Completed")
-    fileWritingLocation = getFileWritingLocation(sourceFolder)
+    fileWritingLocation = getFileWritingLocation(sourceFolder, agentType)
 
     base = Path(fileWritingLocation)
     (base / "plots").mkdir(parents=True, exist_ok=True)
@@ -72,12 +72,14 @@ def normalisationEffectExperiment(
         base / "portfolios/Normalisation",
         title="With Normalisation (Rolling Z-Score)",
         saveFile=base / "plots/NormalisationEffect.png",
+        agentType=agentType,
     )
 
     plotNormalisationExpPerformance(
         base / "portfolios/NonNormalisation",
         title="Without Normalisation",
         saveFile=base / "plots/NonNormalisationEffect.png",
+        agentType=agentType,
     )
 
 
@@ -89,7 +91,7 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
     portfolioValues = dict()
     yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
     noiseFolder = (
-        getFileWritingLocation(sourceFolder)
+        getFileWritingLocation(sourceFolder, agentType)
         + f"/portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
     )
 
@@ -119,7 +121,7 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
             )
             print("*" * 50)
             wandb.finish()
-    runNoiseComparison(yamlConfig, env)
+    runNoiseComparison(yamlConfig, env, agentType=agentType)
 
 
 def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuning"):
@@ -210,12 +212,13 @@ def getRandomMetrics(yamlConfig, dataType="validation", randomRepeats=1000):
     }
 
 
-def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
+def testMetricsAndGraphs(yamlConfig, rewards, envDetails, agentType="ppo"):
     randomMetrics = getRandomMetrics(yamlConfig, dataType="testing", randomRepeats=1000)
     bestTestSetPerformance = plotLearningCurves(
         yamlConfig=yamlConfig,
         randomMetrics=randomMetrics,
         rewardFunctions=rewards,
+        agentType="ppo",
         sumTestTrainingPeriods=envDetails["sum_test_training_periods"],
     )
     tabulateBestTestSetPerformance(
@@ -226,6 +229,7 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
         bestTestSetPerformance,
         randomMetrics["average_random_performance"],
         rewards,
+        agentType=agentType,
     )
     meanStatisticsTabulated(
         yamlConfig=yamlConfig,
@@ -254,6 +258,7 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails):
         randomMetrics["average_random_performance"],
         benchmarkPortVals=benchmarkportfolioValues,
         rewards=rewards,
+        agentType=agentType,
     )
 
 

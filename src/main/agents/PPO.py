@@ -5,7 +5,6 @@
 Much of the code in this file may resemble code that was sumbitted for the CM30359 Coursework.
 I adapted some code used for our TD3 implementation where possible and changed the rest where needed.
 """
-from main.utils.TabulationUtils import pathJoin
 from main.agents.Memory import Memory
 from torch.nn import (
     Linear,
@@ -75,10 +74,13 @@ class CriticNetwork(nn.Module):
             hidden_size=lstmHiddenSize,
             num_layers=1,
             batch_first=True,
+            device=device,
         )
-        self.criticFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.criticFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
-        self.criticFc3 = layerInit(Linear(self.fc2_n, 1))
+        self.criticFc1 = layerInit(
+            Linear(self.lstmHiddenSize, self.fc1_n, device=device)
+        )
+        self.criticFc2 = layerInit(Linear(self.fc1_n, self.fc2_n, device=device))
+        self.criticFc3 = layerInit(Linear(self.fc2_n, 1, device=device))
         self.tanh = nn.Tanh()
 
     def forward(self, state, hiddenState=None):
@@ -87,6 +89,7 @@ class CriticNetwork(nn.Module):
 
         if state.dim() == 2:
             state = state.unsqueeze(1)
+        self.criticLstm.flatten_parameters()
         lstmOut, (hidden, cell) = self.criticLstm(state, hiddenState)
         valuation = self.tanh(self.criticFc1(hidden[-1]))
         valuation = self.tanh(self.criticFc2(valuation))
@@ -134,18 +137,26 @@ class ActorNetwork(nn.Module):
             hidden_size=self.lstmHiddenSize,
             num_layers=1,
             batch_first=True,
+            device=device,
         )
 
-        self.actorFc1 = layerInit(Linear(self.lstmHiddenSize, self.fc1_n))
-        self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n))
+        self.actorFc1 = layerInit(
+            Linear(self.lstmHiddenSize, self.fc1_n, device=device)
+        )
+        self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n, device=device))
 
         # For dirichlet
-        self.dirichletAlphaLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.dirichletAlphaLayer = layerInit(
+            Linear(self.fc2_n, actions_n, device=device), std=0.05
+        )
 
         # For Gaussian (following iclr blog track)
-        self.actorMeanLayer = layerInit(Linear(self.fc2_n, actions_n), std=0.05)
+        self.actorMeanLayer = layerInit(
+            Linear(self.fc2_n, actions_n, device=device), std=0.05
+        )
         self.actorLogStd = Parameter(
-            torch.zeros(1, actions_n)
+            torch.zeros(1, actions_n),
+            requires_grad=True,
         )  # learnable log standard deviation
 
         self.relu = nn.ReLU()
@@ -171,7 +182,7 @@ class ActorNetwork(nn.Module):
         # To make input 3 dimensional.
         if state.dim() == 2:
             state = state.unsqueeze(1)
-
+        self.actorLstm.flatten_parameters()
         lstmOut, (hidden, cell) = self.actorLstm(state, hiddenState)
         x = self.relu(self.actorFc1(hidden[-1]))
         x = self.relu(self.actorFc2(x))
@@ -199,7 +210,7 @@ class PPOAgent:
         alpha: float,  # actor learnign rate
         policyClip: float,
         gamma: float,  # discount factor
-        actor_noise: float,  # noise for actor
+        actorNoise: float,  # noise for actor
         lstmHiddenSizeDictionary: dict,
         state_n: int,
         actions_n: int,
@@ -223,7 +234,7 @@ class PPOAgent:
         self.alpha = alpha
         self.policyClip = policyClip
         self.gamma = gamma
-        self.noise = actor_noise
+        self.noise = actorNoise
         self.state_n = state_n
         self.lstmHiddenSizeDictionary = lstmHiddenSizeDictionary
         self.actions_n = actions_n
@@ -240,6 +251,7 @@ class PPOAgent:
             actionDim=actions_n,
             device=device,
             hiddenAndCellSizeDictionary=lstmHiddenSizeDictionary,
+            isTD3Buffer=False,
         )
         self.learn_step_count = 0
         self.time_step = 0
@@ -300,7 +312,7 @@ class PPOAgent:
             else:
                 action = distribution.mean
             criticValuation, criticHidden = self.critic(
-                state, hiddenAndCellStates["critic"]
+                observation, hiddenAndCellStates["critic"]
             )
             probabilities = distribution.log_prob(
                 action
@@ -308,17 +320,20 @@ class PPOAgent:
             action = torch.squeeze(action)
         if returnHidden:
             return action, probabilities, criticValuation, actorHidden, criticHidden
-        else:
-            return action, probabilities, criticValuation
+        return action, probabilities, criticValuation
 
-    def store(
-        self, state, action, probabilities, valuations, reward, done, hiddenStates
-    ):
+    def store(self, state, action, probability, valuation, reward, done, hiddenStates):
         self.memory.store(
-            state, action, probabilities, valuations, reward, done, hiddenStates
+            state=state,
+            action=action,
+            probability=probability,
+            value=valuation,
+            reward=reward,
+            done=done,
+            hiddenStates=hiddenStates,
         )
 
-    def train(self, nextObs, hAndC):
+    def learn(self, nextObs, hAndC):
         for _ in range(self.epochs):
             (
                 stateArr,
@@ -327,14 +342,16 @@ class PPOAgent:
                 valsArr,
                 rewardArr,
                 donesArr,
-                actorH,
-                actorC,
-                criticH,
-                criticC,
-                featureH,  # unused
-                featureC,  # unused
+                hiddenStates,
                 batches,
-            ) = self.memory.generateBatches()
+            ) = self.memory.sample()
+
+            actorH = hiddenStates["actor"]["h"]
+            actorC = hiddenStates["actor"]["c"]
+            criticH = hiddenStates["critic"]["h"]
+            criticC = hiddenStates["critic"]["c"]
+            featureH = hiddenStates["feature"]["h"]
+            featureC = hiddenStates["feature"]["c"]
 
             # append 0 to the end of the valuation array if terminal state else next state valuation
             # bootstrapping - need to generate valuation for the last state
@@ -344,7 +361,7 @@ class PPOAgent:
                     finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
                     finalValuation, _ = self.critic(finalFeatures, hAndC["critic"])
                     finalValuation = finalValuation.squeeze(0).detach()
-            else:  # - equivalently, nextObs is none if this is the case, since the next state simply cannot be computed
+            else:  # - equivalently, nextObs is a vector of zeros, since the next state simply cannot be computed (and it doesn't matter)
                 finalValuation = torch.tensor([0.0], device=device)
 
             # add it to the end
@@ -484,7 +501,7 @@ class PPOAgent:
         """
         Saves actor/critic/optimizer/featureExtractor only if `metric` beats previous best.
         """
-        sd = Path(__file__).parent / self.experimentState
+        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
         sd.mkdir(parents=True, exist_ok=True)
 
         # where we store best metric
@@ -529,7 +546,7 @@ class PPOAgent:
         return improved
 
     def load(self, save_dir: str):
-        sd = Path(__file__).parent / self.experimentState
+        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
         self.critic.load_state_dict(
             torch.load(sd / self.critic.save_file_name, weights_only=True)
         )

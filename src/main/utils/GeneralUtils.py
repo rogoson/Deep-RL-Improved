@@ -37,9 +37,17 @@ def normData(df, windowSize=0, actuallyNormalise=True):
     return df
 
 
-def getFileWritingLocation(directory="main"):
+def getFileWritingLocation(directory="main", agentType="ppo"):
+    if agentType.lower() in ["ppo", "ppolstm"]:
+        agentDir = "PPOAgent"
+    elif agentType.lower() in ["td3"]:
+        agentDir = "TD3Agent"
     fileWritingLocation = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "plotsAndPortfolioTrajectories")
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            f"plotsAndPortfolioTrajectories/{agentDir}/",
+        )
     )
     if directory != "main":
         fileWritingLocation = fileWritingLocation.replace("main", "tests")

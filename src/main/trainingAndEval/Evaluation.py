@@ -67,11 +67,12 @@ def evaluateAgent(
     baseline=None,
     rl_strats=None,
     sourceFolder=None,
+    strategy=None,
 ):
     """
     Docstring would be helpful.
     """
-    toRun = rl_strats
+    toRun = [strategy]
     if benchmark:
         """
         slightly misleading. If using the random agent as a benchmark, the random agent is seeded by that
@@ -93,7 +94,7 @@ def evaluateAgent(
         env.setData(dataType=dataType, useNoiseEval=useNoiseEval, epoch=epoch)
 
         done = False
-        if strategy == "PPOLSTM":
+        if strategy in rl_strats:
             """
             Reset hidden and cell states of the agent and feature extractor.
             """
@@ -117,13 +118,8 @@ def evaluateAgent(
                 )
                 if LOG_OBSERVATIONS:
                     observationsOverTime.append(observation.detach().cpu().numpy())
-
-            if strategy == "RANDOM":
-                """Random agent samples actions from a Dirichlet distribution - The same as that used in the PPO agent for consistency."""
-                action = np.random.dirichlet(np.ones(env.numberOfAssets + 1))
-            elif strategy in NON_RL_COMPARISON_STRATEGIES:
-                action = strategyVector
-            else:
+            if strategy in rl_strats:
+                # no feature updating, though may change
                 if strategy == "PPOLSTM":
                     action, _, __, actorHidden, criticHidden = agent.select_action(
                         observation,
@@ -131,12 +127,25 @@ def evaluateAgent(
                         sampling=False,
                         returnHidden=True,
                     )
-                    hiddenAndCellStates["actor"] = (
-                        actorHidden  # #update and cell states of actor
-                    )
                     hiddenAndCellStates["critic"] = (
                         criticHidden  # update and cell states of critic
                     )
+                elif strategy == "TD3":
+                    action, actorHidden, *_ = agent.select_action(
+                        observation,
+                        hiddenAndCellStates,
+                        returnHidden=True,
+                        useNoise=False,
+                    )
+                hiddenAndCellStates["actor"] = (
+                    actorHidden  # #update and cell states of actor
+                )
+
+            elif strategy == "RANDOM":
+                """Random agent samples actions from a Dirichlet distribution - The same as that used in the PPO agent for consistency."""
+                action = np.random.dirichlet(np.ones(env.numberOfAssets + 1))
+            elif strategy in NON_RL_COMPARISON_STRATEGIES:
+                action = strategyVector
             next, reward, done, _, info = env.step(
                 action, returnNextObs=False, observeReward=False
             )  # the reward is not observed during evaluation, since the agent does not learn from the data, further, nextobs is not required since no GAE
@@ -165,7 +174,7 @@ def evaluateAgent(
 
         if forLearningCurve:
             portFolder = (
-                getFileWritingLocation(sourceFolder)
+                getFileWritingLocation(sourceFolder, agentType=strategy)
                 + f"/portfolios/{dataType}/forLearningCurve{env.baseSeed}/"
             )
             if not os.path.exists(portFolder):

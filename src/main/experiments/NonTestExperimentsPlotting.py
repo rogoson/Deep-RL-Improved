@@ -9,6 +9,7 @@ def plotNormalisationExpPerformance(
     folderPath,
     title="Mean Training Rewards & Validation Performance Over Training Period",
     saveFile=None,
+    agentType="ppo",
 ):
     """
     Reads data from numbered subdirectories under folderPath, computes the mean and standard deviation
@@ -132,7 +133,8 @@ def plotNormalisationExpPerformance(
 
     if saveFile:
         plt.savefig(saveFile)
-    plt.show()
+    plt.show(block=False)
+    plt.pause(2)
     plt.close()
     return fig
 
@@ -166,10 +168,10 @@ bestCurveX = None
 bestCurveY = None
 
 
-def plotNoiseComparison(yamlConfig, noiseLevel, env):
+def plotNoiseComparison(yamlConfig, noiseLevel, env, agentType="ppo"):
     global bestAuc, bestNoiseLevel, bestCurveX, bestCurveY
 
-    baseFolder = getFileWritingLocation() + "/portfolios/noises/"
+    baseFolder = getFileWritingLocation(agentType=agentType) + "/portfolios/noises/"
     normFolder = f"{baseFolder}Normalisation/"
     nonNormFolder = f"{baseFolder}NonNormalisation/"
 
@@ -237,13 +239,15 @@ def plotNoiseComparison(yamlConfig, noiseLevel, env):
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{baseFolder}/plots/noiseComparison_sigma_{noiseLevel}.png")
+    plt.show(block=False)
+    plt.pause(2)
     plt.close()
     print(f"Saved plot for σ={noiseLevel}.")
 
 
-def runNoiseComparison(yamlConfig, env):
+def runNoiseComparison(yamlConfig, env, agentType="ppo"):
     for noise in yamlConfig["noises"]:
-        plotNoiseComparison(yamlConfig, noise, env)
+        plotNoiseComparison(yamlConfig, noise, env, agentType=agentType)
 
     print(
         f"Generally, the normalisation makes performance over the training period: {round(np.mean(meanPercentageAboves), 2)} %) of the time better than the non-normalised data."
@@ -272,4 +276,6 @@ def runNoiseComparison(yamlConfig, env):
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        plt.show()
+        plt.show(block=False)
+        plt.pause(2)
+        plt.close()
