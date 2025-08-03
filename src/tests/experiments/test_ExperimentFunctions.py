@@ -1,5 +1,4 @@
 import main.experiments.ExperimentsFunctions as mainExp
-from main.experiments.InitialisationHelpers import getEnv
 import pytest
 import os
 import torch
@@ -10,7 +9,6 @@ configPath = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "configs", "config.yaml")
 )
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
-SOURCE_FOLDER = "tests"
 
 with open(configPath) as file:
     yamlConfiguration = yaml.safe_load(file)
@@ -20,18 +18,22 @@ yamlConfiguration["source_folder"] = "tests"
 
 
 def test_normalisationEffectExperiment():
-    mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration)
+    mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration, agentType="td3")
+    mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration, agentType="ppo")
 
 
 def test_noiseTestingExperiment():
     mainExp.noiseTestingExperiment(yamlConfig=yamlConfiguration)
+    mainExp.noiseTestingExperiment(yamlConfig=yamlConfiguration, agentType="td3")
 
 
 def test_hyperparameterTuning():
     mainExp.hyperparameterTuning(
         yamlConfig=yamlConfiguration
     )  # needs work on saving models
+    mainExp.hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="td3")
 
 
 def test_actualTesting():
     mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
+    mainExp.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
