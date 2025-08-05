@@ -22,7 +22,6 @@ import wandb
 import torch
 import torch.nn as nn
 import warnings
-import os
 
 # Convert all UserWarnings into exceptions
 warnings.filterwarnings("error", category=UserWarning)

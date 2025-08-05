@@ -171,9 +171,9 @@ bestCurveY = None
 def plotNoiseComparison(yamlConfig, noiseLevel, env, agentType="ppo"):
     global bestAuc, bestNoiseLevel, bestCurveX, bestCurveY
 
-    baseFolder = getFileWritingLocation(agentType=agentType) + "/portfolios/noises/"
-    normFolder = f"{baseFolder}Normalisation/"
-    nonNormFolder = f"{baseFolder}NonNormalisation/"
+    baseFolder = getFileWritingLocation(agentType=agentType)
+    normFolder = f"{baseFolder}/portfolios/noises/Normalisation/"
+    nonNormFolder = f"{baseFolder}/portfolios/noises/NonNormalisation/"
 
     normResults = loadResults(normFolder, noiseLevel, yamlConfig["varied_base_seeds"])
     nonNormResults = loadResults(

@@ -62,6 +62,7 @@ def createAgentFromConfig(
             {
                 "alpha": agentCfg["alpha"],
                 "beta": agentCfg["beta"],
+                "learning_rate": agentCfg["alpha"],  # naughty, but they're the same
                 "tau": agentCfg["tau"],
                 "actor_noise": agentCfg["actor_noise"],
                 "target_noise": agentCfg["target_noise"],
@@ -107,10 +108,11 @@ def createAgentFromConfig(
             {
                 "learning_rate": (
                     optionalHyperConfig.get(
-                        "learning_rate", baseConfig["learning_rate"]
+                        "learning_rate",
+                        baseConfig["learning_rate" if agentType == "ppo" else "alpha"],
                     )
                     if optionalHyperConfig
-                    else baseConfig["learning_rate"]
+                    else baseConfig["learning_rate" if agentType == "ppo" else "alpha"]
                 ),
                 "feature_output_size": (
                     optionalHyperConfig.get(
@@ -201,8 +203,8 @@ def createAgentFromConfig(
             "agent": TD3Agent(
                 state_n=baseConfig.get("feature_output_size", 128),
                 actions_n=baseConfig.get("actions_n", 1),
-                alpha=baseConfig["alpha"],  # actor learning rate
-                beta=baseConfig.get("beta", baseConfig["beta"]),
+                alpha=baseConfig["learning_rate"],  # actor learning rate
+                beta=baseConfig.get("learning_rate"),
                 gamma=baseConfig.get("gamma", 0.99),
                 tau=baseConfig.get("tau", 0.005),
                 actorNoise=baseConfig.get("actor_noise", 0.1),

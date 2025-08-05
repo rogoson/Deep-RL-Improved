@@ -91,6 +91,7 @@ experiments:
     comparisonStrat: null
     use_noise_eval: false #possible comparison with perturbed?
     for_learning_curve: True
+    source_folder: "tests"
 
   random:
     <<: *defaults

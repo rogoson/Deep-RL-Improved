@@ -11,7 +11,7 @@ def initialiseWandb(yamlConfig, agent, agentConfig):
         name=f"exp-{agentConfig['phase']}"
         + ("_NORM" if yamlConfig["normalise_data"] else ""),
         reinit=True,
-        group=agentConfig["group"],
+        group=f"{agentConfig['strategy']} | {agentConfig['group']}",
         mode=yamlConfig["wandb_state"],
     )
 

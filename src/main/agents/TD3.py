@@ -2,18 +2,12 @@
 
 from main.agents.Memory import Memory
 import copy
-from torch.nn import Linear, LSTM, init, Parameter, functional as F, ReLU, Tanh, Softmax
+from torch.nn import Linear, LSTM, functional as F, ReLU, Tanh, Softmax
 from pathlib import Path
 from torch.optim import Adam
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.special import softmax
-import wandb
 import torch
 import torch.nn as nn
 import warnings
-import os
 
 # Convert all UserWarnings into exceptions
 warnings.filterwarnings("error", category=UserWarning)
