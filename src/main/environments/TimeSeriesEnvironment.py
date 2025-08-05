@@ -118,7 +118,6 @@ class TimeSeriesEnvironment(gym.Env):
         will likely lead to more instability.
         Later testing revealed that these mitigation techniques helped a bit, but were not perfect. I did my best.
 
-        # DATA LAST RETRIEVED - June 28th 2025 - Far more recent data available (looks to be up to last 10 days.)
         """
         #########################################################################################
 
@@ -725,7 +724,11 @@ class TimeSeriesEnvironment(gym.Env):
         if not done and returnNextObs:
             nextObs = self.getData(self.timeStep)
         else:
-            nextObs = None
+            nextObs = torch.zeros(
+                (1, self.TIME_WINDOW, self.numberOfFeatures),
+                dtype=torch.float32,
+                device=device,
+            )
         return (
             nextObs,
             reward,

@@ -1,4 +1,4 @@
-def setUpEvaluationConfig(yamlConfig, stage):
+def setUpEvaluationConfig(yamlConfig, stage, currentStrategy=None):
 
     experimentConfig = yamlConfig["experiments"].get(stage, {})
     finalConfig = {
@@ -9,7 +9,8 @@ def setUpEvaluationConfig(yamlConfig, stage):
         "forLearningCurve": experimentConfig.get("for_learning_curve"),
         "baseline": yamlConfig.get("baseline"),
         "rl_strats": yamlConfig.get("rl_strats"),
-        "sourceFolder": experimentConfig.get("sourceFolder", "main"),
+        "sourceFolder": experimentConfig.get("source_folder", "main"),
+        "strategy": currentStrategy,
     }
 
     return finalConfig
