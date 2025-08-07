@@ -82,46 +82,6 @@ def normalisationEffectExperiment(
     )
 
 
-def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
-    """
-    Test different levels of noise for the agent
-    """
-    portfolioValues = dict()
-    yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
-    noiseFolder = (
-        getFileWritingLocation(yamlConfig, agentType)
-        + f"/portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
-    )
-
-    for s in yamlConfig["varied_base_seeds"]:
-        BASE_SEED = s
-        seed(BASE_SEED)
-        for noise in yamlConfig["noises"]:
-
-            yamlConfig["perturbation_noise"] = noise
-            yamlConfig["env"]["base_seed"] = s
-
-            print("*" * 50)
-            print("Testing Noise: ", noise)
-            env = getEnv(yamlConfig)
-            portfolioValues[noise] = trainingLoop(
-                yamlConfig, env, agentType, stage=phase
-            )
-
-            # Save to the noise folder
-            folderForSavingNoise = f"{noiseFolder}{s}/"
-            if not os.path.exists(folderForSavingNoise):
-                os.makedirs(folderForSavingNoise)
-            np.savetxt(
-                f"{folderForSavingNoise}{noise}.txt",
-                portfolioValues[noise]["validation_performances"],
-                fmt="%f",
-            )
-            print("*" * 50)
-            wandb.finish()
-    runNoiseComparison(yamlConfig, env, agentType=agentType)
-
-
 def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuning"):
     """
     Runs the hyperparameter sweep by sequentially activating one test type at a time.

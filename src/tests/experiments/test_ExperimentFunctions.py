@@ -22,11 +22,6 @@ def test_normalisationEffectExperiment():
     mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration, agentType="ppo")
 
 
-def test_noiseTestingExperiment():
-    mainExp.noiseTestingExperiment(yamlConfig=yamlConfiguration)
-    mainExp.noiseTestingExperiment(yamlConfig=yamlConfiguration, agentType="td3")
-
-
 def test_hyperparameterTuning():
     mainExp.hyperparameterTuning(
         yamlConfig=yamlConfiguration
@@ -35,7 +30,7 @@ def test_hyperparameterTuning():
 
 
 def test_actualTesting():
-    # mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
+    mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
     mainExp.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
 
 

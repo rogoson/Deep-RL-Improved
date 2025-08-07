@@ -169,6 +169,7 @@ bestCurveY = None
 
 
 def plotNoiseComparison(yamlConfig, noiseLevel, env, agentType="ppo"):
+    # replace w FE code
     global bestAuc, bestNoiseLevel, bestCurveX, bestCurveY
 
     baseFolder = getFileWritingLocation(yamlConfig, agentType=agentType)
@@ -246,6 +247,7 @@ def plotNoiseComparison(yamlConfig, noiseLevel, env, agentType="ppo"):
 
 
 def runNoiseComparison(yamlConfig, env, agentType="ppo"):
+    # to be edited
     for noise in yamlConfig["noises"]:
         plotNoiseComparison(yamlConfig, noise, env, agentType=agentType)
 

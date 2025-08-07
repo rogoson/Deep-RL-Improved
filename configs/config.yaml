@@ -13,19 +13,6 @@ varied_base_seeds:
 normalise_data: false
 wandb_state: "disabled"
 source_folder: "main"
-noises:
-  - 0
-  - 0.001
-  - 0.002
-  - 0.004
-  - 0.005
-  - 0.006
-  - 0.008
-  - 0.01
-  - 0.02
-  - 0.05
-  - 0.1
-  - 0.2
 
 env:
   tickers:
@@ -132,7 +119,7 @@ env:
   base_seed: 9
   transaction_cost: 0.0002
   start_cash: 10000
-  perturbation_noise: 0
+  perturbation_noise: 0.002
 
 agent:
   gamma: 0.99

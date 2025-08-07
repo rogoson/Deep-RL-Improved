@@ -90,15 +90,18 @@ def evaluateAgent(
         An optional comparison strategy. This is used to compare the agent's performance against an index.
         """
         strategy = comparisonStrat
-        strategyVector = makeStrategy(  # flat allocation, not as impressive as it looks
-            env.marketData.columns,
-        )
         toRun = [strategy]
 
     for strategy in toRun:
 
         env.reset(evalType=dataType)
         env.setData(dataType=dataType, useNoiseEval=useNoiseEval, epoch=epoch)
+        if comparisonStrat is not None:
+            strategyVector = (
+                makeStrategy(  # flat allocation, not as impressive as it looks
+                    env.marketData.columns,
+                )
+            )
 
         done = False
         if strategy in rl_strats:
