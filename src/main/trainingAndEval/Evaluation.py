@@ -1,16 +1,21 @@
 from main.agents.CommonAgentFunctions import hiddenStateReset
-from main.utils.GeneralUtils import getFileWritingLocation
+from main.utils.GeneralUtils import getFRLocationEvaluation
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-NON_RL_COMPARISON_STRATEGIES = [
+
+def makeStrategy(tickers):
+    return np.array(
+        [0] + [1 / len(tickers) if i in tickers else 0 for i in range(len(tickers))]
+    )
+
+
+NON_RL_COMPARISON_STRATEGIES = {
     "SSE 50 Buy-and-Hold",
-    "SENSEX Buy-and-Hold",
     "FTSE 100 Buy-and-Hold",
     "S&P 500 Buy-and-Hold",
-    "ALL Buy-and-Hold",
-]
+}
 
 LOG_OBSERVATIONS = False
 LOG_INPUT_DATA = False
@@ -84,8 +89,10 @@ def evaluateAgent(
         """
         An optional comparison strategy. This is used to compare the agent's performance against an index.
         """
-        strategy = comparisonStrat[0]
-        strategyVector = comparisonStrat[1]
+        strategy = comparisonStrat
+        strategyVector = makeStrategy(  # flat allocation, not as impressive as it looks
+            env.marketData.columns,
+        )
         toRun = [strategy]
 
     for strategy in toRun:
@@ -153,10 +160,14 @@ def evaluateAgent(
         env.rendering = False
 
         if strategy in rl_strats:
-            generateAnimation = agent.save(env.PORTFOLIO_VALUES[-1] / env.startCash)
+            generateAnimation = agent.save(
+                env.PORTFOLIO_VALUES[-1] / env.startCash, env.index
+            )
             if generateAnimation:
                 env.generateAnimation(
-                    agentType=agent.__class__.__name__, stage=agent.experimentState
+                    agentType=agent.__class__.__name__,
+                    stage=agent.experimentState,
+                    index=env.index,
                 )
 
         if strategy in rl_strats:
@@ -174,7 +185,9 @@ def evaluateAgent(
 
         if forLearningCurve:
             portFolder = (
-                getFileWritingLocation(sourceFolder, agentType=strategy)
+                getFRLocationEvaluation(
+                    sourceFolder, environmentIndex=env.index, agentType=strategy
+                )
                 + f"/portfolios/{dataType}/forLearningCurve{env.baseSeed}/"
             )
             if not os.path.exists(portFolder):

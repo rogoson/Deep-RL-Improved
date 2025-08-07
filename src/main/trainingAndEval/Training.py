@@ -1,8 +1,9 @@
 import wandb
 import time
 import copy
+import numpy as np
 from main.agents.CommonAgentFunctions import hiddenStateReset, storeExperiences
-from main.utils.AgentConfig import createAgentFromConfig
+from main.agents.AgentConfig import createAgentFromConfig
 from .Evaluation import evaluateAgent
 from main.utils.EvaluationConfig import setUpEvaluationConfig
 from main.experiments.InitialisationHelpers import initialiseWandb
@@ -60,7 +61,8 @@ def trainingLoop(
         """
         previousReward = 0
         totalReward = 0
-        for episode in range(
+
+        episodeOrder = np.random.permutation(  # randomise episode order, to limit temporal correlation for td3
             env.datasetsAndDetails[
                 (
                     "training_windows"
@@ -68,11 +70,15 @@ def trainingLoop(
                     else "test_training_windows"
                 )
             ]
-        ):
-            print("Episode:", episode)
+        )
+
+        for episode in episodeOrder:
+            print("Episode:", np.where(episodeOrder == episode)[0][0])
             env.reset(  # gotta have so much faith in this
                 evalType="validation" if stage != "reward_testing" else "testing",
                 pushWindow=True,
+                episode=episode,
+                epoch=epoch,
             )
             hiddenAndCellStates = hiddenStateReset(agent)
             done = False
@@ -191,23 +197,26 @@ def trainingLoop(
                                 **experimentConfig,
                             )
                     else:  # if doing noise testing, evaluate at he end of each training ep
-                        portTrajectory = evaluateAgent(
-                            agent=agent,
-                            env=env,
-                            num=numberRun,
-                            conf=conf,
-                            **experimentConfig,
-                        )
-                        trainingMetrics["validation_performances"].append(
-                            portTrajectory[-1] / env.startCash
-                        )  # store the last value of the portfolio trajectory
-                        wandb.log(
-                            {
-                                "evaluation_performances": trainingMetrics[
-                                    "validation_performances"
-                                ][-1]
-                            },
-                            commit=False,
-                        )
+                        if not experimentConfig[
+                            "forLearningCurve"
+                        ]:  # handled inside training loop - not for this exp
+                            portTrajectory = evaluateAgent(
+                                agent=agent,
+                                env=env,
+                                num=numberRun,
+                                conf=conf,
+                                **experimentConfig,
+                            )
+                            trainingMetrics["validation_performances"].append(
+                                portTrajectory[-1] / env.startCash
+                            )  # store the last value of the portfolio trajectory
+                            wandb.log(
+                                {
+                                    "evaluation_performances": trainingMetrics[
+                                        "validation_performances"
+                                    ][-1]
+                                },
+                                commit=False,
+                            )
             trainingMetrics["epoch_reward"].append(totalReward)
     return trainingMetrics if not experimentConfig["useNoiseEval"] else None

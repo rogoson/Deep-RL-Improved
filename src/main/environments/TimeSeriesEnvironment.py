@@ -68,6 +68,8 @@ class TimeSeriesEnvironment(gym.Env):
         self.meanSquaredReturn = None
 
         self.datasetsAndDetails = None
+        self.productIds = None
+        self.index = None
 
     def setup(self, yamlConfig):
         data, returnableInfo = self.createDataframes(yamlConfig)
@@ -77,36 +79,15 @@ class TimeSeriesEnvironment(gym.Env):
     def createDataframes(self, configuration):
         dataframes = dict()
 
-        sAndpTickers = ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN", "NVDA"]
-        sse50Tickers = [
-            "600519.SS",
-            "601318.SS",
-            "601857.SS",
-            "600036.SS",
-            "600016.SS",
-            "600000.SS",
-        ]
-        sensexTickers = [
-            "RELIANCE.BO",
-            "TCS.BO",
-            "INFY.BO",
-            "ICICIBANK.BO",
-            "SBIN.BO",
-            "HINDUNILVR.BO",
-        ]
-        ftse100Tickers = ["HSBA.L", "BP.L", "GSK.L", "SHEL.L", "BATS.L", "ULVR.L"]
-
         period = configuration["env"]["period"]
 
-        indicesToChooseFrom = {
-            "S&P 500": sAndpTickers,
-            "SSE50": sse50Tickers,
-            "SENSEX": sensexTickers,
-            "FTSE 100": ftse100Tickers,
-            "ALL": sAndpTickers + sse50Tickers + sensexTickers + ftse100Tickers,
-        }
+        index = configuration["active_index"]
+        self.index = index
+        productIds = configuration["env"]["tickers"][index]
+        self.productIds = productIds
+        if len(productIds) == 0:
+            raise ValueError("No product IDs provided for data retrieval.")
 
-        productIds = indicesToChooseFrom[configuration["env"]["stocks"]]
         self.numberOfAssets = len(productIds)
         redownloadData = configuration["env"]["redownload"]
         self.baseSeed = configuration["env"]["base_seed"]
@@ -377,32 +358,11 @@ class TimeSeriesEnvironment(gym.Env):
 
         self.numberOfFeatures = 2 + (
             1 + len((list(dataframes.values())[0]).columns)
-        ) * len(productIds)
-
-        def makeStrategy(tickers):
-            return np.array(
-                [0] + [1 / len(tickers) if i in tickers else 0 for i in productIds]
-            )
-
-        nonRLComparisonStrategies = {
-            "SSE 50 Buy-and-Hold": makeStrategy(sse50Tickers),
-            "SENSEX Buy-and-Hold": makeStrategy(sensexTickers),
-            "FTSE 100 Buy-and-Hold": makeStrategy(ftse100Tickers),
-            "S&P 500 Buy-and-Hold": makeStrategy(sAndpTickers),
-            "ALL Buy-and-Hold": np.array(
-                [0] + [1 / len(productIds) for _ in productIds]
-            ),
-        }
+        ) * len(self.productIds)
 
         detailsToReturn = {
             "numberOfAssets": self.numberOfAssets,
             "numberOfFeatures": self.numberOfFeatures,
-            "comparisonStrategies": {
-                configuration["env"]["stocks"]
-                + " Buy-and-Hold": nonRLComparisonStrategies[
-                    configuration["env"]["stocks"] + " Buy-and-Hold"
-                ]
-            },
         }
 
         return dataframes, detailsToReturn
@@ -551,7 +511,9 @@ class TimeSeriesEnvironment(gym.Env):
             limitedHorizon = max(min(horizon, len(closingPrices)), 2)
             plt.plot(closingPrices[:limitedHorizon], label=f"Noise Level = {noiseVal}")
 
-        plt.title(f"Apple Price with Noise Levels. Horizon = {horizon}")
+        plt.title(
+            f"{next(iter(self.datasetsAndDetails["testing_data"].keys()))} Price with Noise Levels. Horizon = {horizon}"
+        )
         plt.xlabel("Date")
         plt.ylabel("Price (USD)")
         plt.legend()
@@ -1171,9 +1133,9 @@ class TimeSeriesEnvironment(gym.Env):
         """
         return self.rewardFunction
 
-    def generateAnimation(self, agentType, stage):
+    def generateAnimation(self, agentType, stage, index):
         higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        file = f"{higherDir}/animations/{agentType}/{stage}/"
+        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/"
         if not os.path.exists(file):
             os.makedirs(file)
         self.animatePortfolio(f"{file}/portfolio_animation.mp4")

@@ -35,5 +35,8 @@ def test_hyperparameterTuning():
 
 
 def test_actualTesting():
-    mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
+    # mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
     mainExp.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
+
+
+test_actualTesting()

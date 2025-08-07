@@ -496,11 +496,16 @@ class PPOAgent:
             plt.close()
         self.memory.clear()
 
-    def save(self, metric: float):
+    def save(self, metric: float, index: str = ""):
         """
         Saves actor/critic/optimizer/featureExtractor only if `metric` beats previous best.
         """
-        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
+        sd = (
+            Path(__file__).parent
+            / index
+            / self.__class__.__name__
+            / self.experimentState
+        )
         sd.mkdir(parents=True, exist_ok=True)
 
         # where we store best metric
@@ -544,8 +549,13 @@ class PPOAgent:
             )
         return improved
 
-    def load(self, save_dir: str):
-        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
+    def load(self, save_dir: str, index: str = ""):
+        sd = (
+            Path(__file__).parent
+            / index
+            / self.__class__.__name__
+            / self.experimentState
+        )
         self.critic.load_state_dict(
             torch.load(sd / self.critic.save_file_name, weights_only=True)
         )

@@ -37,7 +37,16 @@ def normData(df, windowSize=0, actuallyNormalise=True):
     return df
 
 
-def getFileWritingLocation(directory="main", agentType="ppo"):
+def getFRLocationEvaluation(sourceFolder="main", environmentIndex="", agentType="ppo"):
+    return getFileWritingLocation(
+        yamlConfig={"source_folder": sourceFolder, "active_index": environmentIndex},
+        agentType=agentType,
+    )
+
+
+def getFileWritingLocation(yamlConfig, agentType="ppo"):
+    directory = yamlConfig.get("source_folder", "main")
+    index = yamlConfig.get("active_index", "")
     if agentType.lower() in ["ppo", "ppolstm"]:
         agentDir = "PPOAgent"
     elif agentType.lower() in ["td3"]:
@@ -46,7 +55,7 @@ def getFileWritingLocation(directory="main", agentType="ppo"):
         os.path.join(
             os.path.dirname(__file__),
             "..",
-            f"plotsAndPortfolioTrajectories/{agentDir}/",
+            f"plotsAndPortfolioTrajectories/{index}/{agentDir}/",
         )
     )
     if directory != "main":

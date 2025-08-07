@@ -26,11 +26,10 @@ def normalisationEffectExperiment(
     """
     Test the effect of normalisation on the agent's performance.
     """
-    sourceFolder = yamlConfig["source_folder"]
     portfolioValues = dict()
     for isNormalised in [True, False]:
         normFolder = (
-            getFileWritingLocation(sourceFolder, agentType)
+            getFileWritingLocation(yamlConfig, agentType)
             + f"/portfolios/{'Normalisation' if isNormalised else 'NonNormalisation'}/"
         )
         for s in yamlConfig["varied_base_seeds"]:
@@ -62,7 +61,7 @@ def normalisationEffectExperiment(
             print("*" * 50)
             wandb.finish()
     print("Normalisation Effect Experiment Completed")
-    fileWritingLocation = getFileWritingLocation(sourceFolder, agentType)
+    fileWritingLocation = getFileWritingLocation(yamlConfig, agentType)
 
     base = Path(fileWritingLocation)
     (base / "plots").mkdir(parents=True, exist_ok=True)
@@ -87,11 +86,10 @@ def noiseTestingExperiment(yamlConfig, agentType="ppo", phase="noise_testing"):
     """
     Test different levels of noise for the agent
     """
-    sourceFolder = yamlConfig["source_folder"]
     portfolioValues = dict()
     yamlConfig["normalise_data"] = yamlConfig.get("normalise_data", True)
     noiseFolder = (
-        getFileWritingLocation(sourceFolder, agentType)
+        getFileWritingLocation(yamlConfig, agentType)
         + f"/portfolios/noises/{'Normalisation' if yamlConfig["normalise_data"] else 'NonNormalisation'}/"
     )
 
@@ -218,7 +216,7 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails, agentType="ppo"):
         yamlConfig=yamlConfig,
         randomMetrics=randomMetrics,
         rewardFunctions=rewards,
-        agentType="ppo",
+        agentType=agentType,
         sumTestTrainingPeriods=envDetails["sum_test_training_periods"],
     )
     tabulateBestTestSetPerformance(
@@ -240,10 +238,11 @@ def testMetricsAndGraphs(yamlConfig, rewards, envDetails, agentType="ppo"):
 
     experimentConfig = setUpEvaluationConfig(yamlConfig, "nonRLComparisonStrategies")
     env = getEnv(yamlConfig)
-    comparisonStrategies = env.setup(yamlConfig)["comparisonStrategies"]
+    env.setup(yamlConfig)
+    comparisonStrategies = yamlConfig["env"]["comparisonStrategies"]
     benchmarkportfolioValues = dict()
-    for strat, vec in comparisonStrategies.items():
-        experimentConfig["comparisonStrat"] = [strat, vec]
+    for strat in comparisonStrategies:
+        experimentConfig["comparisonStrat"] = strat
         benchmarkportfolioValues[strat] = evaluateAgent(
             agent=None,
             env=env,
@@ -286,7 +285,7 @@ def trainTestingAgents(yamlConfig, agentType="ppo", phase="reward_testing"):
             trainingLoop(
                 yamlConfig=yamlConfig,
                 env=env,
-                agentType="ppo",
+                agentType=agentType,
                 conf="Reward Function-" + rew + " | " + f"Strategy-{agentType}",
                 stage=phase,
             )
