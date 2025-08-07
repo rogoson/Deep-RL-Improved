@@ -1,4 +1,5 @@
 from itertools import cycle
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from .MetricComputations import scoreFormula, maxDrawdown
@@ -22,7 +23,7 @@ def plotLearningCurves(
         timeSteps = []
 
         for rewardFunc in rewardFunctions:
-            file = f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
+            file = f"{getFileWritingLocation(yamlConfig, agentType=agentType)}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
             cumReturns = []
             scores = []
             for i in range(1, yamlConfig["test"]["learning_curve_frequency"]):
@@ -85,15 +86,16 @@ def plotLearningCurves(
             label="Random (Baseline)",
             linewidth=1.5,
         )
+        fileLoc = getFileWritingLocation(yamlConfig, agentType=agentType)
+        plots = fileLoc + "/plots/"
+        os.makedirs(plots, exist_ok=True)
         plt.xlabel("Training Timesteps Elapsed")
         plt.ylabel("Cumulative Returns (%)")
         plt.title(f"Learning Curve (Returns) – Seed {seed}")
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Cumulative_Returns_Seed{seed}"
-        )
+        plt.savefig(f"{plots}/Cumulative_Returns_Seed{seed}")
         plt.show(block=False)
         plt.pause(2)
         plt.close()
@@ -128,9 +130,7 @@ def plotLearningCurves(
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Scores_Seed{seed}"
-        )
+        plt.savefig(f"{plots}/Scores_Seed{seed}")
         plt.show(block=False)
         plt.pause(2)
         plt.close()
@@ -243,16 +243,16 @@ def bestPerformancesAndStandardDeviations(
             .replace(")", "")
             .replace(".", "_")
         )
-
+        fileLoc = getFileWritingLocation(yamlConfig, agentType=agentType)
+        plots = fileLoc + "/plots/"
+        os.makedirs(plots, exist_ok=True)
         plt.xlabel("Timestep")
         plt.ylabel("Cumulative Returns (%)")
         plt.title(f"Cumulative Returns Across Seeds – {plottedName}")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(
-            f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Cumulative_Returns_Mean_{safe_filename}"
-        )
+        plt.savefig(f"{plots}/Cumulative_Returns_Mean_{safe_filename}")
         plt.show(block=False)
         plt.pause(2)
         plt.close()
@@ -381,6 +381,10 @@ def finalIndexComparisonPlot(
         color="grey",
     )
 
+    fileLoc = getFileWritingLocation(yamlConfig, agentType=agentType)
+    plots = fileLoc + "/plots/"
+    os.makedirs(plots, exist_ok=True)
+
     # Add baseline and labels
     plt.xlabel("Time")
     plt.ylabel("Cumulative Returns (%)")
@@ -388,9 +392,7 @@ def finalIndexComparisonPlot(
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(
-        f"{getFileWritingLocation(yamlConfig["source_folder"], agentType=agentType)}/plots/Mean_Returns_vs_Indices"
-    )
+    plt.savefig(f"{plots}/Mean_Returns_vs_Indices")
     plt.show(block=False)
     plt.pause(2)
     plt.close()

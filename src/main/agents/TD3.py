@@ -442,13 +442,18 @@ class TD3Agent:
                 self.updateNetwork(self.critic2, self.targetCritic2)
                 self.updateNetwork(self.actor, self.targetActor)
 
-    def save(self, metric: float) -> bool:
+    def save(self, metric: float, index: str = "") -> bool:
         """
         Saves all TD3 networks and optimizers only if `metric`
         (e.g. episode return) exceeds the previous best.
         """
         # build checkpoint directory
-        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
+        sd = (
+            Path(__file__).parent
+            / index
+            / self.__class__.__name__
+            / self.experimentState
+        )
         sd.mkdir(parents=True, exist_ok=True)
 
         # file to store best metric so far
@@ -513,7 +518,7 @@ class TD3Agent:
 
         return improved
 
-    def load(self, save_dir: str = None):
+    def load(self, save_dir: str = None, index: str = ""):
         """
         Loads the best‐so‐far checkpoints for all TD3 networks
         and optimizers from the experiment directory.
