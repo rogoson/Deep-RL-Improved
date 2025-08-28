@@ -51,6 +51,14 @@ def getFileWritingLocation(yamlConfig, agentType="ppo"):
         agentDir = "PPOAgent"
     elif agentType.lower() in ["td3"]:
         agentDir = "TD3Agent"
+    else:
+        agentDir = agentType
+
+    if yamlConfig["usingLSTMFeatureExtractor"]:
+        agentDir = f"{agentDir}_{"LSTMFeatureExtractor"}"
+    else:
+        agentDir = f"{agentDir}_{"CNNFeatureExtractor"}"
+
     fileWritingLocation = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),

@@ -46,10 +46,12 @@ def hiddenStateReset(agent):
         hAndCStates["targetActor"] = agent.targetActor.initHidden(batchSize=1)
         hAndCStates["targetCritic"] = agent.targetCritic.initHidden(batchSize=1)
         hAndCStates["targetCritic2"] = agent.targetCritic2.initHidden(batchSize=1)
-        hAndCStates["targetFeature"] = agent.targetFeatureExtractor.initHidden(
-            batchSize=1
-        )
+        if not agent.hasCNNFeature:
+            hAndCStates["targetFeature"] = agent.targetFeatureExtractor.initHidden(
+                batchSize=1
+            )
     hAndCStates["actor"] = agent.actor.initHidden(batchSize=1)
     hAndCStates["critic"] = agent.critic.initHidden(batchSize=1)
-    hAndCStates["feature"] = agent.featureExtractor.initHidden(batchSize=1)
+    if not agent.hasCNNFeature:
+        hAndCStates["feature"] = agent.featureExtractor.initHidden(batchSize=1)
     return hAndCStates

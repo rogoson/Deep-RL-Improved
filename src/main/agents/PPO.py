@@ -228,6 +228,7 @@ class PPOAgent:
         useEntropy=False,
         useDirichlet=True,  # Whether to use Dirichlet distribution for actions (otherwise mean/std)
         log_concentration_heatmap=False,  # Whether to log concentration heatmap - depending on internet speeds, this can slow training severely (by like 3x)
+        cnnFeature=False,
         experimentState=None,
     ):
         self.alpha = alpha
@@ -243,6 +244,7 @@ class PPOAgent:
         self.gaeLambda = gaeLambda
         self.epochs = epochs
         self.nonFeatureStateDim = nonFeatureStateDim
+        self.hasCNNFeature = cnnFeature
         self.memory = Memory(
             maxSize=maxSize,
             batchSize=batch_size,
@@ -250,6 +252,7 @@ class PPOAgent:
             actionDim=actions_n,
             device=device,
             hiddenAndCellSizeDictionary=lstmHiddenSizeDictionary,
+            cnnFeature=cnnFeature,
             isTD3Buffer=False,
         )
         self.learn_step_count = 0
@@ -349,14 +352,17 @@ class PPOAgent:
             actorC = hiddenStates["actor"]["c"]
             criticH = hiddenStates["critic"]["h"]
             criticC = hiddenStates["critic"]["c"]
-            featureH = hiddenStates["feature"]["h"]
-            featureC = hiddenStates["feature"]["c"]
+            if not self.hasCNNFeature:
+                featureH = hiddenStates["feature"]["h"]
+                featureC = hiddenStates["feature"]["c"]
 
             # append 0 to the end of the valuation array if terminal state else next state valuation
             # bootstrapping - need to generate valuation for the last state
             if not donesArr[-1] and nextObs is not None:  # if not terminal at the end
                 with torch.no_grad():
-                    finalFeatures, _ = self.featureExtractor(nextObs, hAndC["feature"])
+                    finalFeatures, _ = self.featureExtractor(
+                        nextObs, hAndC["feature"] if not self.hasCNNFeature else None
+                    )
                     finalFeatures = finalFeatures.unsqueeze(1)  # batch dimension
                     finalValuation, _ = self.critic(finalFeatures, hAndC["critic"])
                     finalValuation = finalValuation.squeeze(0).detach()
@@ -398,10 +404,11 @@ class PPOAgent:
                     criticH[batch].unsqueeze(0),
                     criticC[batch].unsqueeze(0),
                 )
-                featureHidden = (
-                    featureH[batch].unsqueeze(0),
-                    featureC[batch].unsqueeze(0),
-                )
+                if not self.hasCNNFeature:
+                    featureHidden = (
+                        featureH[batch].unsqueeze(0),
+                        featureC[batch].unsqueeze(0),
+                    )
 
                 states = stateArr[batch]
                 actions = actionArr[batch]
@@ -411,7 +418,9 @@ class PPOAgent:
 
                 # Recompute featuers to ensure that actor and critic are always processing off
                 # up-to-date representations
-                features, _ = self.featureExtractor(states, featureHidden)
+                features, _ = self.featureExtractor(
+                    states, featureHidden if not self.hasCNNFeature else None
+                )
                 features = features.unsqueeze(1)  # crtical to be processed as batch
 
                 """
@@ -504,8 +513,10 @@ class PPOAgent:
             Path(__file__).parent
             / index
             / self.__class__.__name__
+            / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
             / self.experimentState
         )
+
         sd.mkdir(parents=True, exist_ok=True)
 
         # where we store best metric
@@ -554,6 +565,7 @@ class PPOAgent:
             Path(__file__).parent
             / index
             / self.__class__.__name__
+            / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
             / self.experimentState
         )
         self.critic.load_state_dict(

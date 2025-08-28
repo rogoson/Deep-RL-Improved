@@ -175,6 +175,7 @@ class TD3Agent:
         featureExtractor=None,
         nonFeatureStateDim=None,
         lstmHiddenSizeDictionary=None,
+        cnnFeature=False,
         rewardFunction=None,
         experimentState=None,
     ):
@@ -198,6 +199,7 @@ class TD3Agent:
         self.featureExtractor = featureExtractor
         self.targetFeatureExtractor = copy.deepcopy(featureExtractor)
         self.rewardFunction = rewardFunction
+        self.hasCNNFeature = cnnFeature
         self.memory = Memory(
             maxSize=maxSize,
             batchSize=batchSize,
@@ -206,6 +208,7 @@ class TD3Agent:
             device=device,
             hiddenAndCellSizeDictionary=lstmHiddenSizeDictionary,
             isTD3Buffer=True,
+            cnnFeature=cnnFeature,
         )
         self.learnStepCount = 0
         self.timeStep = 0
@@ -357,32 +360,22 @@ class TD3Agent:
                 self.memory.sample()
             )
 
-            components = [
-                "actor",
-                "critic",
-                "critic2",
-                "feature",
-                "targetFeature",
-                "targetActor",
-                "targetCritic",
-                "targetCritic2",
-            ]
-
             hiddenDict = {}
-            for name in components:
+            for name in self.memory.components:
                 h = hiddenStates[name]["h"].unsqueeze(0)
                 c = hiddenStates[name]["c"].unsqueeze(0)
-                hiddenDict[f"{name}Hidden"] = (h, c)
+                hiddenDict[f"{name}Hidden"] = (h, c) if not self.hasCNNFeature else None
 
             states = states.to(device)
             featureVecs, _ = self.featureExtractor.forward(
-                states, hiddenDict["featureHidden"]
+                states, hiddenDict["featureHidden"] if not self.hasCNNFeature else None
             )
             actions = actions.to(device)
             rewards = rewards.to(device).unsqueeze(1)
             newStates = newStates.to(device)
             newTargetFeatureVecs, _ = self.targetFeatureExtractor.forward(
-                newStates, hiddenDict["targetFeatureHidden"]
+                newStates,
+                hiddenDict["targetFeatureHidden"] if not self.hasCNNFeature else None,
             )
             doneArr = doneArr.to(device).unsqueeze(1)  # unsqueeze more
 
@@ -427,7 +420,8 @@ class TD3Agent:
             # update actor every other time step
             if self.learnStepCount % self.actorUpdateFreq == 0:
                 featureVecs_actor, _ = self.featureExtractor.forward(
-                    states, hiddenDict["featureHidden"]
+                    states,
+                    hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
                 )
                 newActions, _ = self.actor(featureVecs_actor, hiddenDict["actorHidden"])
                 criticValuation, _ = self.critic(
@@ -452,6 +446,7 @@ class TD3Agent:
             Path(__file__).parent
             / index
             / self.__class__.__name__
+            / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
             / self.experimentState
         )
         sd.mkdir(parents=True, exist_ok=True)
@@ -523,7 +518,13 @@ class TD3Agent:
         Loads the best‐so‐far checkpoints for all TD3 networks
         and optimizers from the experiment directory.
         """
-        sd = Path(__file__).parent / self.__class__.__name__ / self.experimentState
+        sd = (
+            Path(__file__).parent
+            / index
+            / self.__class__.__name__
+            / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
+            / self.experimentState
+        )
 
         # critics
         self.critic.load_state_dict(
