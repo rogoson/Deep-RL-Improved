@@ -1,6 +1,7 @@
 from main.agents.PPO import PPOAgent
 from main.agents.TD3 import TD3Agent
 from main.featureExtractors.LstmFeatureExtractor import LstmFeatureExtractor
+from main.featureExtractors.CNNFeatureExtractor import CNNFeatureExtractor
 
 
 def createAgentFromConfig(
@@ -9,7 +10,6 @@ def createAgentFromConfig(
     yamlConfig,
     optionalHyperConfig=None,
     numberOfFeatures=None,  # better hope to God that this exists
-    featureExtractor=None,
 ):
     """
     Builds configuration and returns an RL agent instance using config-driven parameters.
@@ -19,7 +19,7 @@ def createAgentFromConfig(
         raise ValueError(f"Agent type '{agentType}' not found in configuration.")
 
     agentCfg = yamlConfig["agent"][agentType]
-
+    useLstmFeature = yamlConfig["usingLSTMFeatureExtractor"]
     # Common config base
     baseConfig = {
         "gamma": yamlConfig["agent"]["gamma"],
@@ -51,9 +51,11 @@ def createAgentFromConfig(
                 "lstm_hidden_size": {
                     "actor": yamlConfig["agent"]["actor_critic_hidden_state_size"],
                     "critic": yamlConfig["agent"]["actor_critic_hidden_state_size"],
-                    "feature": yamlConfig["feature_extractors"]["lstm"][
-                        "default_hidden_size"
-                    ],
+                    "feature": (
+                        yamlConfig["feature_extractors"]["lstm"]["default_hidden_size"]
+                        if useLstmFeature
+                        else None
+                    ),
                 },
             }
         )
@@ -74,9 +76,11 @@ def createAgentFromConfig(
                     "actor": yamlConfig["agent"]["actor_critic_hidden_state_size"],
                     "critic": yamlConfig["agent"]["actor_critic_hidden_state_size"],
                     "critic2": yamlConfig["agent"]["actor_critic_hidden_state_size"],
-                    "feature": yamlConfig["feature_extractors"]["lstm"][
-                        "default_hidden_size"
-                    ],
+                    "feature": (
+                        yamlConfig["feature_extractors"]["lstm"]["default_hidden_size"]
+                        if useLstmFeature
+                        else None
+                    ),
                     "targetActor": yamlConfig["agent"][
                         "actor_critic_hidden_state_size"
                     ],
@@ -86,9 +90,11 @@ def createAgentFromConfig(
                     "targetCritic2": yamlConfig["agent"][
                         "actor_critic_hidden_state_size"
                     ],
-                    "targetFeature": yamlConfig["feature_extractors"]["lstm"][
-                        "default_hidden_size"
-                    ],
+                    "targetFeature": (
+                        yamlConfig["feature_extractors"]["lstm"]["default_hidden_size"]
+                        if useLstmFeature
+                        else None
+                    ),
                 },
             }
         )
@@ -96,24 +102,9 @@ def createAgentFromConfig(
     else:
         raise ValueError(f"Agent type '{agentType}' is not yet supported.")
 
-    # Phase-specific overrides
-    if phase == "data_normalisation":
-        baseConfig.update({"phase": phase, "group": "Data Normalisation"})
-
-    elif phase == "noise_testing":
-        baseConfig.update({"phase": phase, "group": "Noise Variation"})
-
-    elif phase == "hyperparameter_tuning":
+    if phase == "hyperparameter_tuning":
         baseConfig.update(
             {
-                "learning_rate": (
-                    optionalHyperConfig.get(
-                        "learning_rate",
-                        baseConfig["learning_rate" if agentType == "ppo" else "alpha"],
-                    )
-                    if optionalHyperConfig
-                    else baseConfig["learning_rate" if agentType == "ppo" else "alpha"]
-                ),
                 "feature_output_size": (
                     optionalHyperConfig.get(
                         "feature_output_size",
@@ -150,7 +141,7 @@ def createAgentFromConfig(
         raise ValueError(f"Unknown phase: {phase}")
 
     # Feature extractor (if required)
-    if featureExtractor is None:
+    if useLstmFeature:
         featureExtractor = LstmFeatureExtractor(
             baseConfig["number_of_features"],
             lstmHiddenSize=baseConfig["lstm_hidden_size"]["feature"],
@@ -158,6 +149,12 @@ def createAgentFromConfig(
             returnHiddenState=yamlConfig["feature_extractors"]["lstm"].get(
                 "return_hidden_state", False
             ),  # Default to False unless specified
+        )
+    else:
+        featureExtractor = CNNFeatureExtractor(
+            numFeatures=baseConfig["number_of_features"],
+            timeWindow=baseConfig["time_window"],
+            outputSize=baseConfig.get("feature_output_size", 128),
         )
 
     # === AGENT CREATION ===
@@ -194,6 +191,7 @@ def createAgentFromConfig(
                 useDirichlet=baseConfig.get("use_dirichlet", True),
                 log_concentration_heatmap=baseConfig.get("log_concentration", False),
                 experimentState=phase,
+                cnnFeature=not useLstmFeature,
             ),
             "agentConfig": baseConfig,
         }
@@ -226,6 +224,7 @@ def createAgentFromConfig(
                     baseConfig.get("number_of_features", 0),
                 ),
                 experimentState=phase,
+                cnnFeature=not useLstmFeature,
             ),
             "agentConfig": baseConfig,
         }

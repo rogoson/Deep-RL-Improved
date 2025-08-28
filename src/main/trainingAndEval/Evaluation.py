@@ -6,15 +6,13 @@ import os
 
 
 def makeStrategy(tickers):
-    return np.array(
-        [0] + [1 / len(tickers) if i in tickers else 0 for i in range(len(tickers))]
-    )
+    return np.array([0] + [1 / len(tickers) for i in range(len(tickers))])
 
 
 NON_RL_COMPARISON_STRATEGIES = {
-    "SSE 50 Buy-and-Hold",
-    "FTSE 100 Buy-and-Hold",
-    "S&P 500 Buy-and-Hold",
+    "DOW Buy-and-Hold",
+    "FTSE100 Buy-and-Hold",
+    "SSE50 Buy-and-Hold",
 }
 
 LOG_OBSERVATIONS = False
@@ -124,7 +122,14 @@ def evaluateAgent(
                 data = env.getData()  # Retrieve data
                 dataOverTime.append(data.squeeze(0)[0].detach().cpu().numpy())
                 observation, hiddenAndCellStates["feature"] = (
-                    agent.featureExtractor.forward(data, hiddenAndCellStates["feature"])
+                    agent.featureExtractor.forward(
+                        data,
+                        (
+                            hiddenAndCellStates["feature"]
+                            if not agent.hasCNNFeature
+                            else None
+                        ),
+                    )
                 )
                 if LOG_OBSERVATIONS:
                     observationsOverTime.append(observation.detach().cpu().numpy())
@@ -171,6 +176,9 @@ def evaluateAgent(
                     agentType=agent.__class__.__name__,
                     stage=agent.experimentState,
                     index=env.index,
+                    featureExtractor=(
+                        "CNNFeature" if agent.hasCNNFeature else "LSTMFeature"
+                    ),
                 )
 
         if strategy in rl_strats:

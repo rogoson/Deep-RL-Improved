@@ -93,14 +93,23 @@ def trainingLoop(
                         hiddenAndCellStates.copy()
                     )  # save previous hidden and cell states (for storing)
                 observation, hiddenAndCellStates["feature"] = (
-                    agent.featureExtractor.forward(data, hiddenAndCellStates["feature"])
+                    agent.featureExtractor.forward(
+                        data,
+                        (
+                            hiddenAndCellStates["feature"]
+                            if not agent.hasCNNFeature
+                            else None
+                        ),
+                    )
                 )
                 if strategy == "TD3":
-                    _, hiddenAndCellStates["targetFeature"] = (
-                        agent.targetFeatureExtractor.forward(
-                            data, hiddenAndCellStates["targetFeature"]
+                    if not agent.hasCNNFeature:
+                        _, hiddenAndCellStates["targetFeature"] = (
+                            agent.targetFeatureExtractor.forward(
+                                data,
+                                (hiddenAndCellStates["feature"]),
+                            )
                         )
-                    )
 
                 if strategy in yamlConfig["rl_strats"]:
                     action = None
@@ -185,38 +194,27 @@ def trainingLoop(
                     print("Episode Reward:", totalReward - previousReward)
                     wandb.log({"total_reward": totalReward}, commit=False)
                     previousReward = totalReward
-                    if experimentConfig[
-                        "useNoiseEval"
-                    ]:  # if not doing noise testing, only evaluate once per epoch
-                        if numberRun % env.datasetsAndDetails["training_windows"] == 0:
-                            evaluateAgent(
-                                agent=agent,
-                                env=env,
-                                num=numberRun,
-                                conf=conf,
-                                **experimentConfig,
-                            )
-                    else:  # if doing noise testing, evaluate at he end of each training ep
-                        if not experimentConfig[
-                            "forLearningCurve"
-                        ]:  # handled inside training loop - not for this exp
-                            portTrajectory = evaluateAgent(
-                                agent=agent,
-                                env=env,
-                                num=numberRun,
-                                conf=conf,
-                                **experimentConfig,
-                            )
-                            trainingMetrics["validation_performances"].append(
-                                portTrajectory[-1] / env.startCash
-                            )  # store the last value of the portfolio trajectory
-                            wandb.log(
-                                {
-                                    "evaluation_performances": trainingMetrics[
-                                        "validation_performances"
-                                    ][-1]
-                                },
-                                commit=False,
-                            )
+                    # if doing noise testing, evaluate at he end of each training ep
+                    if not experimentConfig[
+                        "forLearningCurve"
+                    ]:  # handled inside training loop - not for this exp
+                        portTrajectory = evaluateAgent(
+                            agent=agent,
+                            env=env,
+                            num=numberRun,
+                            conf=conf,
+                            **experimentConfig,
+                        )
+                        trainingMetrics["validation_performances"].append(
+                            portTrajectory[-1] / env.startCash
+                        )  # store the last value of the portfolio trajectory
+                        wandb.log(
+                            {
+                                "evaluation_performances": trainingMetrics[
+                                    "validation_performances"
+                                ][-1]
+                            },
+                            commit=False,
+                        )
             trainingMetrics["epoch_reward"].append(totalReward)
-    return trainingMetrics if not experimentConfig["useNoiseEval"] else None
+    return trainingMetrics

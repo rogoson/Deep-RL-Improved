@@ -200,8 +200,8 @@ class TimeSeriesEnvironment(gym.Env):
 
         today = datetime.today().strftime("%Y-%m-%d")
         # Create and write to a file
-        if os.path.exists(BASE_DIR / "lastDownloaded.txt"):
-            with open(BASE_DIR / "lastDownloaded.txt", "r+") as file:
+        if os.path.exists(BASE_DIR / f"lastDownloaded_{index}.txt"):
+            with open(BASE_DIR / f"lastDownloaded_{index}.txt", "r+") as file:
                 date = file.readline().strip()
                 if date == today:
                     redownloadData = False
@@ -211,7 +211,7 @@ class TimeSeriesEnvironment(gym.Env):
                     file.truncate()
 
         else:
-            with open(BASE_DIR / "lastDownloaded.txt", "w") as file:
+            with open(BASE_DIR / f"lastDownloaded_{index}.txt", "w") as file:
                 file.write(f"{today}\n")
 
         if redownloadData:
@@ -228,10 +228,12 @@ class TimeSeriesEnvironment(gym.Env):
                     continue
 
                 if dataframe.empty:
-                    redownloadData = False
-                    if not os.path.exists(BASE_DIR / "CSVs/"):
+                    if not os.path.exists(
+                        BASE_DIR / f"CSVs/{productId}_{period}_periods.csv"
+                    ):
                         raise Exception("Market Data not downloadable and not saved.")
-                    break
+                    else:
+                        redownloadData = False
                 columnNames = [value[1] for value in list(dataframe.columns.values)]
                 dataframe.columns = columnNames
                 dataframes[productId] = dataframe
@@ -441,7 +443,7 @@ class TimeSeriesEnvironment(gym.Env):
         self.datasetsAndDetails = datasets
 
         if not self.hasVisualised:
-            self.demonstrateNoiseEffect(configuration["noises"])
+            self.demonstrateNoiseEffect(configuration["env"]["perturbation_noise"])
         self.hasVisualised = True  # Ensure visualisation is only done once
 
     def visualiseData(self, datasets):
@@ -495,13 +497,13 @@ class TimeSeriesEnvironment(gym.Env):
             plt.pause(3)
             plt.close()
 
-    def demonstrateNoiseEffect(self, noises):
+    def demonstrateNoiseEffect(self, perturbationNoise):
         horizon = 10  # time horizon to visualize over
         """
         Plot the Apple stock prices from the testing data.
         """
         plt.figure(figsize=(12, 6))
-        for noiseVal in noises:
+        for noiseVal in [0, perturbationNoise]:
             testData = self.datasetsAndDetails["testing_data"][
                 next(iter(self.datasetsAndDetails["testing_data"].keys()))
             ].copy()
@@ -699,42 +701,6 @@ class TimeSeriesEnvironment(gym.Env):
             info,
         )
 
-    def getMetrics(self, portfolioValues=None, returns=None):
-        """
-        Some metrics that can be returned for a given run.
-        """
-        if portfolioValues is None:
-            portfolioValues = self.PORTFOLIO_VALUES
-        info = dict()
-        info["Cumulative \nReturn (%)"] = round(
-            100 * (portfolioValues[-1] / self.startCash) - 100, 2
-        )
-        info["Maximum \nDrawdown (%)"] = self.maxDrawdown()
-        percChange = np.diff(portfolioValues) / portfolioValues[:-1]
-        info["Sharpe Ratio"] = (
-            round(np.mean(percChange) / np.std(percChange), 4)
-            if np.std(percChange) != 0
-            else 0.0
-        )
-        info["Total Timesteps"] = self.timeStep
-        return info
-
-    def maxDrawdown(self, portfolioValues=None):
-        """
-        maximum drawdown calculation
-        :param portfolioValues: The portfolio values to calculate the maximum drawdown for.
-        :return: The maximum drawdown for the portfolio values.
-        """
-        if portfolioValues is None:
-            portfolioValues = self.PORTFOLIO_VALUES
-        maxValue = float("-inf")
-        maxDrawdown = 0.0
-        for value in portfolioValues:
-            maxValue = max(maxValue, value)
-            drawdown = (maxValue - value) / maxValue * 100
-            maxDrawdown = max(maxDrawdown, drawdown)
-        return maxDrawdown
-
     def getLogReward(self, mostRecentPortfolioValue=None, previousPortfolioValue=None):
         """
         Returns the logarithmic reward based on the portfolio values.
@@ -820,6 +786,7 @@ class TimeSeriesEnvironment(gym.Env):
 
     def getCVaRReward(self, r, useCVaR=True):
         """
+        This RF is BOOTY
         CVaR reward calculation.
         :param r: The reward to be calculated.
         :param useCVaR: Whether to use CVaR or not. If not, the reward is just the normalised value of the reward.
@@ -1133,9 +1100,9 @@ class TimeSeriesEnvironment(gym.Env):
         """
         return self.rewardFunction
 
-    def generateAnimation(self, agentType, stage, index):
+    def generateAnimation(self, agentType, stage, index, featureExtractor):
         higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/"
+        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/{featureExtractor}"
         if not os.path.exists(file):
             os.makedirs(file)
         self.animatePortfolio(f"{file}/portfolio_animation.mp4")

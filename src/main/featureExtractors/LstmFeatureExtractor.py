@@ -1,15 +1,14 @@
 import torch
-from torch.nn import Linear, LSTM, Tanh
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from torch.nn import Linear, LSTM, Tanh, Module
 
 _SAVE_SUFFIX = "_lstm"
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 
 
-class LstmFeatureExtractor(BaseFeaturesExtractor):
+class LstmFeatureExtractor(Module):
     """
-    LSTM Feature Extractor for PPO Agent
+    LSTM Feature Extractor for Agent
     This class is used to extract features from the input data using an LSTM network, and some
     linear layers as specified in the report
 
@@ -25,9 +24,8 @@ class LstmFeatureExtractor(BaseFeaturesExtractor):
         returnHiddenState=False,
         modelName="featureExtractor",
     ):
-        super(LstmFeatureExtractor, self).__init__(
-            observation_space=None, features_dim=lstmOutputSize
-        )
+        super(LstmFeatureExtractor, self).__init__()
+
         self.lstmHiddenSize = lstmHiddenSize
         self.lstmOutputSize = lstmOutputSize
         self.modelName = modelName

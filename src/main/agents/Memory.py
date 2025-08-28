@@ -18,6 +18,7 @@ class Memory:
         stateDim,
         actionDim,
         hiddenAndCellSizeDictionary,
+        cnnFeature=False,
         isTD3Buffer=False,
         device="cpu",
     ):
@@ -46,6 +47,7 @@ class Memory:
         self.dones = torch.zeros((maxSize,), dtype=torch.bool, device=device)
         self.isTD3Buffer = isTD3Buffer
         self.memoryFull = False
+        self.cnnFeature = cnnFeature
 
         def makeBuffer(role):
             return {
@@ -64,11 +66,14 @@ class Memory:
         self.hiddenStateBuffers = {
             "actor": makeBuffer("actor"),
             "critic": makeBuffer("critic"),
-            "feature": makeBuffer("feature"),
         }
+        if not cnnFeature:
+            self.hiddenStateBuffers["feature"] = makeBuffer("feature")
+
         if self.isTD3Buffer:
             self.hiddenStateBuffers["critic2"] = makeBuffer("critic2")
-            self.hiddenStateBuffers["targetFeature"] = makeBuffer("feature")
+            if not cnnFeature:
+                self.hiddenStateBuffers["targetFeature"] = makeBuffer("feature")
             self.hiddenStateBuffers["targetActor"] = makeBuffer("targetActor")
             self.hiddenStateBuffers["targetCritic"] = makeBuffer("targetCritic")
             self.hiddenStateBuffers["targetCritic2"] = makeBuffer("targetCritic2")
@@ -111,22 +116,27 @@ class Memory:
         self.dones[index] = torch.tensor(done, dtype=torch.bool, device=self.device)
         self._cachedDist = None
         self._cachedPtr = None
+        self.components = [
+            c
+            for c in (
+                ["actor", "critic", "feature"]
+                if not self.isTD3Buffer
+                else [
+                    "actor",
+                    "critic",
+                    "critic2",
+                    "feature",
+                    "targetActor",
+                    "targetCritic",
+                    "targetCritic2",
+                    "targetFeature",
+                ]
+            )
+            if not self.cnnFeature or c not in ("feature", "targetFeature")
+        ]
 
         # Store all hidden states in organized manner
-        for component in (
-            (["actor", "critic", "feature"])
-            if not self.isTD3Buffer
-            else [
-                "actor",
-                "critic",
-                "critic2",
-                "feature",
-                "targetActor",
-                "targetCritic",
-                "targetCritic2",
-                "targetFeature",
-            ]
-        ):
+        for component in self.components:
             h, c = hiddenStates[component]
             self.hiddenStateBuffers[component]["h"][index] = h.detach().squeeze()
             self.hiddenStateBuffers[component]["c"][index] = c.detach().squeeze()
@@ -185,21 +195,6 @@ class Memory:
                 replacement=True,
             )
 
-        components = (
-            ["actor", "critic", "feature"]
-            if not self.isTD3Buffer
-            else [
-                "actor",
-                "critic",
-                "critic2",
-                "feature",
-                "targetActor",
-                "targetCritic",
-                "targetCritic2",
-                "targetFeature",
-            ]
-        )
-
         select = slice(None, numSamples) if not self.isTD3Buffer else indices
 
         hiddenStates = {
@@ -207,7 +202,7 @@ class Memory:
                 stateType: self.hiddenStateBuffers[comp][stateType][select]
                 for stateType in ["h", "c"]
             }
-            for comp in components
+            for comp in self.components
         }
 
         return (

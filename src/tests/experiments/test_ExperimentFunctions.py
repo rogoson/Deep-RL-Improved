@@ -17,11 +17,6 @@ yamlConfiguration["varied_base_seeds"] = [1, 2]
 yamlConfiguration["source_folder"] = "tests"
 
 
-def test_normalisationEffectExperiment():
-    mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration, agentType="td3")
-    mainExp.normalisationEffectExperiment(yamlConfig=yamlConfiguration, agentType="ppo")
-
-
 def test_hyperparameterTuning():
     mainExp.hyperparameterTuning(
         yamlConfig=yamlConfiguration
@@ -34,4 +29,4 @@ def test_actualTesting():
     mainExp.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
 
 
-test_actualTesting()
+test_hyperparameterTuning()
