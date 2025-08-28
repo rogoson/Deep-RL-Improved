@@ -24,8 +24,8 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
     Runs the hyperparameter sweep by sequentially activating one test type at a time.
     """
     TESTING = {
-        # "FEATURE OUTPUT SIZE": False,
-        # "NORMALIZE DATA": False,
+        "FEATURE OUTPUT SIZE": False,
+        "NORMALIZE DATA": False,
     }
     portfolioValues = dict()
     for extractor in [True, False]:
@@ -35,14 +35,14 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
             TESTING[key] = True
 
             sweepParams = {
-                # "FEATURE OUTPUT SIZE": {
-                #     "values": yamlConfig["hyperparameters"]["feature_output_sizes"],
-                #     "overrides": {"feature_output_size": None},
-                # },
-                # "NORMALIZE DATA": {  # not really a hyperparam but easier than a whole other experiment
-                #     "values": [True, False],
-                #     "overrides": {},
-                # },
+                "FEATURE OUTPUT SIZE": {
+                    "values": yamlConfig["hyperparameters"]["feature_output_sizes"],
+                    "overrides": {"feature_output_size": None},
+                },
+                "NORMALIZE DATA": {  # not really a hyperparam but easier than a whole other experiment
+                    "values": [True, False],
+                    "overrides": {},
+                },
             }
 
             # Iterate over active test types defined in TESTING
@@ -88,8 +88,6 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
                         break  # Run only one active test type per sweep
             TESTING[key] = False
             print("=" * 50)
-    env = getEnv(yamlConfig)
-    env.setup(yamlConfig)
     runParameterComparison(yamlConfig, env, agentType)
 
 
