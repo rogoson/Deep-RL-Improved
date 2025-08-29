@@ -1,0 +1,29 @@
+# CUDA 11.8 runtime (cudnn8), Ubuntu 22.04
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+WORKDIR /app
+ENV DEBIAN_FRONTEND=noninteractive
+
+# micromamba bootstrap (fast Conda)
+ARG MAMBA_ROOT_PREFIX=/opt/micromamba
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates bzip2 curl \
+    && curl -L https://micro.mamba.pm/api/micromamba/linux-64/latest \
+    | tar -xj -C /usr/local/bin/ --strip-components=1 bin/micromamba \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create env with Python 3.12 and ta-lib from conda-forge (prebuilt C lib + wrapper)
+RUN micromamba create -y -n py312 -c conda-forge python=3.12 ta-lib \
+    && micromamba clean -a -y
+
+# Make that env the default interpreter
+ENV PATH=$MAMBA_ROOT_PREFIX/envs/py312/bin:$PATH PYTHONPATH="/app/src"
+SHELL ["/usr/local/bin/micromamba", "run", "-n", "py312", "/bin/bash", "-lc"]
+
+#should be in base but aint rebuilding allat - move overnight
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch (CUDA 11.8 wheels). Cache pip to speed up rebuilds if you ever bump versions.
+ARG TORCH_VERSION=2.7.0+cu118
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu118 \
+    "torch==${TORCH_VERSION}"

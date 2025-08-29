@@ -1,4 +1,5 @@
-import main.experiments.ExperimentsFunctions as mainExp
+import main.experiments.RewardTesting as rewTesting
+import main.experiments.HyperparameterTuning as hypTuning
 import pytest
 import os
 import torch
@@ -8,7 +9,6 @@ import yaml
 configPath = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "configs", "config.yaml")
 )
-device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 
 with open(configPath) as file:
     yamlConfiguration = yaml.safe_load(file)
@@ -18,15 +18,15 @@ yamlConfiguration["source_folder"] = "tests"
 
 
 def test_hyperparameterTuning():
-    mainExp.hyperparameterTuning(
+    hypTuning.hyperparameterTuning(
         yamlConfig=yamlConfiguration
     )  # needs work on saving models
-    mainExp.hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="td3")
+    hypTuning.hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="td3")
 
 
 def test_actualTesting():
-    mainExp.trainTestingAgents(yamlConfig=yamlConfiguration)
-    mainExp.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
+    rewTesting.trainTestingAgents(yamlConfig=yamlConfiguration)
+    rewTesting.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
 
 
 test_hyperparameterTuning()

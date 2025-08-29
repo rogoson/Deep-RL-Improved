@@ -19,3 +19,4 @@ src/main/validation/
 *.xlsx
 *__pycache__/
 *.pytest_cache/
+.env

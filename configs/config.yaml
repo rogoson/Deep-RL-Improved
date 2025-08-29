@@ -11,7 +11,7 @@ varied_base_seeds:
   - 7
   - 9
 normalise_data: false
-wandb_state: "disabled"
+wandb_state: "online"
 source_folder: "main"
 
 env:
@@ -159,7 +159,7 @@ agent:
 feature_extractors:
   lstm:
     default_hidden_size: 128
-    return_hidden_state: True
+    return_hidden_state: False
 
 hyperparameters:
   feature_output_sizes:
@@ -184,7 +184,6 @@ experiments:
 
   hyperparameter_tuning:
     <<: *defaults
-    use_noise_eval: false
 
   reward_testing:
     dataType: "testing"
@@ -192,7 +191,7 @@ experiments:
     comparisonStrat: null
     use_noise_eval: false #possible comparison with perturbed?
     for_learning_curve: True
-    source_folder: "tests" #change this back brev
+    source_folder: "main"
 
   random:
     <<: *defaults
