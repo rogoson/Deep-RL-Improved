@@ -18,7 +18,6 @@ RUN micromamba create -y -n py312 -c conda-forge python=3.12 ta-lib \
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/py312/bin:$PATH PYTHONPATH="/app/src"
 SHELL ["/usr/local/bin/micromamba", "run", "-n", "py312", "/bin/bash", "-lc"]
 
-#should be in base but aint rebuilding allat - move overnight
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
