@@ -10,4 +10,5 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     /opt/micromamba/envs/py312/bin/pip install --no-cache-dir -c constraints.txt -r requirements.txt
 
 COPY . .
+EXPOSE 8080
 CMD ["python3", "-m", "src.main.experiments.RewardTesting"]

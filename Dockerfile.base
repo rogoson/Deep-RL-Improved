@@ -18,8 +18,7 @@ RUN micromamba create -y -n py312 -c conda-forge python=3.12 ta-lib \
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/py312/bin:$PATH PYTHONPATH="/app/src"
 SHELL ["/usr/local/bin/micromamba", "run", "-n", "py312", "/bin/bash", "-lc"]
 
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+RUN micromamba install -y -n py312 -c conda-forge ffmpeg && micromamba clean -a -y
 
 # Install PyTorch (CUDA 11.8 wheels). Cache pip to speed up rebuilds if you ever bump versions.
 ARG TORCH_VERSION=2.7.0+cu118
