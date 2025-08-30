@@ -5,7 +5,7 @@ import os
 import yaml
 
 
-def runExperimentFunction(experimentFunction, yamlConfiguration):
+def runExperimentFunction(experimentFunction):
     configPath = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
