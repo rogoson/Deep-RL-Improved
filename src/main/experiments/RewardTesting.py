@@ -1,13 +1,9 @@
-from main.utils.GeneralUtils import seed, getFileWritingLocation
+from main.utils.GeneralUtils import seed
 from main.trainingAndEval.Training import trainingLoop
-from .NonTestExperimentsPlotting import (
-    runParameterComparison,
-)
+from .ExperimentsFunctions import runExperimentFunction
 from .InitialisationHelpers import getEnv
 from main.utils.EvaluationConfig import setUpEvaluationConfig
 from main.trainingAndEval.Evaluation import evaluateAgent
-from main.utils.RestServer import startServer
-from pathlib import Path
 from .TestExperimentsPlotting import (
     plotLearningCurves,
     tabulateBestTestSetPerformance,
@@ -15,10 +11,8 @@ from .TestExperimentsPlotting import (
     meanStatisticsTabulated,
     finalIndexComparisonPlot,
 )
-import os
 import wandb
 import numpy as np
-import yaml
 
 
 def getRandomMetrics(yamlConfig, randomRepeats=1000):
@@ -144,14 +138,5 @@ def trainTestingAgents(yamlConfig, agentType="ppo", phase="reward_testing"):
         )
 
 
-configPath = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "configs", "config.yaml")
-)
-
-with open(configPath) as file:
-    yamlConfiguration = yaml.safe_load(file)
-
 if __name__ == "__main__":
-    startServer()
-    trainTestingAgents(yamlConfig=yamlConfiguration, agentType="ppo")
-    trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
+    runExperimentFunction(trainTestingAgents)

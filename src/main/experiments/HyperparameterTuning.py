@@ -1,14 +1,13 @@
 from main.utils.GeneralUtils import seed, getFileWritingLocation
 from main.trainingAndEval.Training import trainingLoop
 from .InitialisationHelpers import getEnv
-from main.utils.RestServer import startServer
+from .ExperimentsFunctions import runExperimentFunction
 from .NonTestExperimentsPlotting import (
     runParameterComparison,
 )
 import os
 import wandb
 import numpy as np
-import yaml
 
 
 def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuning"):
@@ -17,7 +16,7 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
     """
     TESTING = {
         "FEATURE OUTPUT SIZE": False,
-        "NORMALIZE DATA": False,
+        # "NORMALIZE DATA": False,
     }
     portfolioValues = dict()
     for extractor in [True, False]:
@@ -31,10 +30,10 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
                     "values": yamlConfig["hyperparameters"]["feature_output_sizes"],
                     "overrides": {"feature_output_size": None},
                 },
-                "NORMALIZE DATA": {  # not really a hyperparam but easier than a whole other experiment
-                    "values": [True, False],
-                    "overrides": {},
-                },
+                # "NORMALIZE DATA": {  # not really a hyperparam but easier than a whole other experiment
+                #     "values": [True, False],
+                #     "overrides": {},
+                # },
             }
 
             # Iterate over active test types defined in TESTING
@@ -83,13 +82,5 @@ def hyperparameterTuning(yamlConfig, agentType="ppo", phase="hyperparameter_tuni
     runParameterComparison(yamlConfig, env, agentType)
 
 
-configPath = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "configs", "config.yaml")
-)
-with open(configPath) as file:
-    yamlConfiguration = yaml.safe_load(file)
-
 if __name__ == "__main__":
-    startServer()
-    hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="ppo")
-    hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="td3")
+    runExperimentFunction(hyperparameterTuning)

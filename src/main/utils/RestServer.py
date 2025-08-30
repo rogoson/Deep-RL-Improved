@@ -2,9 +2,8 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import pickle
-from environments.TimeSeriesEnvironment import TimeSeriesEnvironment
+from main.environments.TimeSeriesEnvironment import TimeSeriesEnvironment
 import yaml
-import os
 
 # global thread reference and lock for video generation
 generationThread = None

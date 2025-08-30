@@ -148,6 +148,7 @@ agent:
     alpha: 0.001
     beta: 0.001
     tau: 0.005
+    feature_output_size: 128
     batch_size: 100
     fc1_n: 512
     fc2_n: 384

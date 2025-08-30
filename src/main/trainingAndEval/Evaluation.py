@@ -197,7 +197,7 @@ def evaluateAgent(
                     "path": str(fullPath),
                 }
                 with agentDetailsPath.open("w") as f:
-                    yaml.dump(data, f, default_flow_style=False)
+                    yaml.dump(data, f)
 
         if strategy in rl_strats:
             if LOG_ANY:
