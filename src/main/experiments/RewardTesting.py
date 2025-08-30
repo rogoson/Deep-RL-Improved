@@ -6,7 +6,7 @@ from .NonTestExperimentsPlotting import (
 from .InitialisationHelpers import getEnv
 from main.utils.EvaluationConfig import setUpEvaluationConfig
 from main.trainingAndEval.Evaluation import evaluateAgent
-from main.utils.HealthServer import startHealth
+from main.utils.RestServer import startServer
 from pathlib import Path
 from .TestExperimentsPlotting import (
     plotLearningCurves,
@@ -152,6 +152,6 @@ with open(configPath) as file:
     yamlConfiguration = yaml.safe_load(file)
 
 if __name__ == "__main__":
-    startHealth()
+    startServer()
     trainTestingAgents(yamlConfig=yamlConfiguration, agentType="ppo")
     trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")

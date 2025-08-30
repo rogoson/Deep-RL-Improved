@@ -1,7 +1,7 @@
 from main.utils.GeneralUtils import seed, getFileWritingLocation
 from main.trainingAndEval.Training import trainingLoop
 from .InitialisationHelpers import getEnv
-from main.utils.HealthServer import startHealth
+from main.utils.RestServer import startServer
 from .NonTestExperimentsPlotting import (
     runParameterComparison,
 )
@@ -90,6 +90,6 @@ with open(configPath) as file:
     yamlConfiguration = yaml.safe_load(file)
 
 if __name__ == "__main__":
-    startHealth()
+    startServer()
     hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="ppo")
     hyperparameterTuning(yamlConfig=yamlConfiguration, agentType="td3")

@@ -20,3 +20,5 @@ src/main/validation/
 *__pycache__/
 *.pytest_cache/
 .env
+rootkeyAWS.csv
+instanceKeyPair.pem

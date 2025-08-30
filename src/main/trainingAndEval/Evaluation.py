@@ -1,7 +1,11 @@
 from main.agents.CommonAgentFunctions import hiddenStateReset
 from main.utils.GeneralUtils import getFRLocationEvaluation
 import matplotlib.pyplot as plt
+import yaml
+from pathlib import Path
 import numpy as np
+import pickle
+import copy
 import os
 
 
@@ -168,18 +172,32 @@ def evaluateAgent(
         env.rendering = False
 
         if strategy in rl_strats:
-            generateAnimation = agent.save(
+            newBest, path = agent.save(
                 env.PORTFOLIO_VALUES[-1] / env.startCash, env.index
             )
-            if generateAnimation:
-                env.generateAnimation(
-                    agentType=agent.__class__.__name__,
-                    stage=agent.experimentState,
-                    index=env.index,
-                    featureExtractor=(
+            if newBest:
+                temporaryEnvState = copy.deepcopy(env.__dict__)
+                fullPath = path / "env_state.pkl"
+                with fullPath.open("wb") as f:
+                    pickle.dump(temporaryEnvState, f)
+
+                agentDetailsPath = (
+                    Path(__file__).resolve().parent.parent
+                    / "animations"
+                    / "agentAnimationDetails.yaml"
+                )
+
+                data = {
+                    "agentType": agent.__class__.__name__,
+                    "stage": agent.experimentState,
+                    "index": env.index,
+                    "featureExtractor": (
                         "CNNFeature" if agent.hasCNNFeature else "LSTMFeature"
                     ),
-                )
+                    "path": str(fullPath),
+                }
+                with agentDetailsPath.open("w") as f:
+                    yaml.dump(data, f, default_flow_style=False)
 
         if strategy in rl_strats:
             if LOG_ANY:

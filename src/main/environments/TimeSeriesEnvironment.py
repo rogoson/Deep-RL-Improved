@@ -1106,3 +1106,4 @@ class TimeSeriesEnvironment(gym.Env):
         if not os.path.exists(file):
             os.makedirs(file)
         self.animatePortfolio(f"{file}/portfolio_animation.mp4")
+        return file

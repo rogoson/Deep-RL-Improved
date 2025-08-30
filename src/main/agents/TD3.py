@@ -511,7 +511,7 @@ class TD3Agent:
                 f"— No improvement ({metric:.6f} vs {previousBest:.6f}); skipping save."
             )
 
-        return improved
+        return improved, sd
 
     def load(self, save_dir: str = None, index: str = ""):
         """

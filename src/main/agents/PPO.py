@@ -558,7 +558,7 @@ class PPOAgent:
             print(
                 f"— No improvement in return ({metric:.6f} vs {prev_best:.6f}); skipping save."
             )
-        return improved
+        return improved, sd
 
     def load(self, save_dir: str, index: str = ""):
         sd = (
