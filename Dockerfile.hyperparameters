@@ -12,7 +12,5 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY . .
 
-COPY temp_config.yaml /app/data/configs/config.yaml
-
 EXPOSE 8080
 CMD ["python", "-m","src.main.experiments.HyperparameterTuning"]

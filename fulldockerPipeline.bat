@@ -38,6 +38,7 @@ docker volume create mydata
 
 echo Running hyperparameter container...
 docker run ^
+    -v "%cd%\temp_config.yaml:/app/data/configs/config.yaml" ^
     -v mydata:/app/data ^
     -p 8080:8080 ^
     --env-file .env ^
