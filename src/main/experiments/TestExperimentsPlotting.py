@@ -1,6 +1,9 @@
 from itertools import cycle
 import os
 import numpy as np
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from .MetricComputations import scoreFormula, maxDrawdown
 from main.utils.TabulationUtils import tabulate_neatly
@@ -96,8 +99,6 @@ def plotLearningCurves(
         plt.legend()
         plt.tight_layout()
         plt.savefig(f"{plots}/Cumulative_Returns_Seed{seed}")
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
 
         # Plot scores for this seed
@@ -131,8 +132,6 @@ def plotLearningCurves(
         plt.legend()
         plt.tight_layout()
         plt.savefig(f"{plots}/Scores_Seed{seed}")
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
     return bestTestSetPerformance
 
@@ -253,8 +252,6 @@ def bestPerformancesAndStandardDeviations(
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f"{plots}/Cumulative_Returns_Mean_{safe_filename}")
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
 
 
@@ -393,6 +390,4 @@ def finalIndexComparisonPlot(
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(f"{plots}/Mean_Returns_vs_Indices")
-    plt.show(block=False)
-    plt.pause(2)
     plt.close()

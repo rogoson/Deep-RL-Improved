@@ -1,5 +1,6 @@
 import main.experiments.RewardTesting as rewTesting
 import main.experiments.HyperparameterTuning as hypTuning
+from main.utils.RestServer import startServer
 import pytest
 import os
 import torch
@@ -18,6 +19,7 @@ yamlConfiguration["source_folder"] = "tests"
 
 
 def test_hyperparameterTuning():
+    startServer()
     hypTuning.hyperparameterTuning(
         yamlConfig=yamlConfiguration
     )  # needs work on saving models
@@ -25,6 +27,7 @@ def test_hyperparameterTuning():
 
 
 def test_actualTesting():
+    startServer()
     rewTesting.trainTestingAgents(yamlConfig=yamlConfiguration)
     rewTesting.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
 

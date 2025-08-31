@@ -1,5 +1,9 @@
 from main.agents.CommonAgentFunctions import hiddenStateReset
 from main.utils.GeneralUtils import getFRLocationEvaluation
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import yaml
 from pathlib import Path
@@ -42,7 +46,6 @@ def logDetails(LOG_DETAILS):
         plt.ylabel("Values per Index")
         plt.title("Data Over Time (using data index 0)")
         plt.grid(True, linestyle="--", alpha=0.5)  # Add a subtle grid for readability
-        plt.show()
     if LOG_OBSERVATIONS:
         plt.figure(figsize=(12, 8))  # Bigger figure for clarity
         for dim in range(observationsOverTime[0].shape[0]):
@@ -56,7 +59,6 @@ def logDetails(LOG_DETAILS):
         plt.ylabel("Values per Index")
         plt.title("Observations Vectors Over Time")
         plt.grid(True, linestyle="--", alpha=0.5)  # Add a subtle grid for readability
-        plt.show()
 
 
 def evaluateAgent(

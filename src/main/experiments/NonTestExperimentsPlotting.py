@@ -2,6 +2,9 @@ import os
 import numpy as np
 import yaml
 from pathlib import Path
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from .MetricComputations import computeWeightedAUC
 from main.utils.GeneralUtils import getFileWritingLocation
@@ -93,8 +96,6 @@ def plotParameterComparison(yamlConfig, parameterDict, env, agentType="ppo"):
         plt.savefig(
             f"{baseFolder}/plots/{"_".join(parameter.split())}Comparison_{value}.png",
         )
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
         print(f"Saved plot for param={parameter}.")
     return {
@@ -128,8 +129,6 @@ def displayResults(aucResults, bestCurveX, bestCurveY, bestParameter):
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
 
 

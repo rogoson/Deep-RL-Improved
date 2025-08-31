@@ -73,7 +73,8 @@ class RestHandler(BaseHTTPRequestHandler):
             )
 
             if agentDetailsPath.exists():
-                videoConfig = yaml.safe_load(agentDetailsPath)
+                with agentDetailsPath.open("r") as f:
+                    videoConfig = yaml.safe_load(f)
 
                 with Path(videoConfig["path"]).open("rb") as f:
                     loadedState = pickle.load(f)

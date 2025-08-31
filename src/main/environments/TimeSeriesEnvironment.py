@@ -10,6 +10,9 @@ import yfinance as yf
 from functools import reduce
 import talib as ta
 from datetime import datetime
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 
@@ -493,8 +496,6 @@ class TimeSeriesEnvironment(gym.Env):
             )
             plt.legend(loc="upper right", bbox_to_anchor=(1.2, 1), fontsize=8, ncol=1)
             plt.grid(True, linestyle="--", alpha=0.5)
-            plt.show(block=False)
-            plt.pause(3)
             plt.close()
 
     def demonstrateNoiseEffect(self, perturbationNoise):
@@ -520,8 +521,6 @@ class TimeSeriesEnvironment(gym.Env):
         plt.ylabel("Price (USD)")
         plt.legend()
         plt.grid()
-        plt.show(block=False)
-        plt.pause(3)
         plt.close()
 
     def setData(self, dataType, useNoiseEval=True, epoch=0):
@@ -1002,8 +1001,11 @@ class TimeSeriesEnvironment(gym.Env):
             fig, update, frames=len(self.PORTFOLIO_VALUES), repeat=False
         )
 
+        sp = Path(save_path).resolve()
+        sp.parent.mkdir(parents=True, exist_ok=True)
+
         writer = FFMpegWriter(fps=10, metadata=dict(artist="Richard"), bitrate=1800)
-        ani.save(save_path, writer=writer, dpi=150)
+        ani.save(str(sp), writer=writer, dpi=150)
         print(f"Animation saved to {save_path}")
         plt.close(fig)
 
@@ -1102,7 +1104,7 @@ class TimeSeriesEnvironment(gym.Env):
 
     def generateAnimation(self, agentType, stage, index, featureExtractor):
         higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/{featureExtractor}"
+        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/{featureExtractor}/"
         if not os.path.exists(file):
             os.makedirs(file)
         self.animatePortfolio(f"{file}/portfolio_animation.mp4")
