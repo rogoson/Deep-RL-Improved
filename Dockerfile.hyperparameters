@@ -11,5 +11,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     /opt/micromamba/envs/py312/bin/pip install --no-cache-dir -c constraints.txt -r requirements.txt
 
 COPY . .
+
+COPY temp_config.yaml /app/data/configs/config.yaml
+
 EXPOSE 8080
 CMD ["python", "-m","src.main.experiments.HyperparameterTuning"]
