@@ -222,7 +222,7 @@ class TD3Agent:
             model_name="actor",
         ).to(device)
         self.actorOptimiser = Adam(
-            list(self.actor.parameters()) + list(self.featureExtractor.parameters()),
+            list(self.actor.parameters()),
             lr=self.alpha,
         )
 
@@ -234,10 +234,6 @@ class TD3Agent:
             self.actions_n,
             model_name="critic",
         ).to(device)
-        self.criticOptimiser = Adam(
-            list(self.critic.parameters()) + list(self.featureExtractor.parameters()),
-            lr=self.beta,
-        )  # would probably be best to just have one optimiser - feature extractor might get stepped in both directions
 
         self.critic2 = CriticNetwork(
             self.fc1_n,
@@ -247,8 +243,11 @@ class TD3Agent:
             self.actions_n,
             model_name="critic2",
         ).to(device)
-        self.critic2Optimiser = Adam(
-            list(self.critic2.parameters()) + list(self.featureExtractor.parameters()),
+
+        self.criticOptimiser = Adam(
+            list(self.critic.parameters())
+            + list(self.critic2.parameters())
+            + list(self.featureExtractor.parameters()),
             lr=self.beta,
         )
 
@@ -279,16 +278,14 @@ class TD3Agent:
             model_name="targetCritic2",
         ).to(device)
 
-        self.updateNetwork(self.critic, self.targetCritic)
-        self.updateNetwork(self.critic2, self.targetCritic2)
-        self.updateNetwork(self.actor, self.targetActor)
-        self.updateNetwork(self.featureExtractor, self.targetFeatureExtractor)
+        self.targetActor.load_state_dict(self.actor.state_dict())
+        self.targetCritic.load_state_dict(self.critic.state_dict())
+        self.targetCritic2.load_state_dict(self.critic2.state_dict())
+        self.targetFeatureExtractor.load_state_dict(self.featureExtractor.state_dict())
 
     def select_action(
-        self, observation, hiddenAndCellStates, returnHidden=False, useNoise=True
+        self, state, hiddenAndCellStates, returnHidden=False, useNoise=True
     ):
-
-        state = observation
         with torch.no_grad():
             action, actorHidden = self.actor(state, hiddenAndCellStates["actor"])
             _, criticHidden = self.critic(state, action, hiddenAndCellStates["critic"])
@@ -304,12 +301,12 @@ class TD3Agent:
             _, targetCritic2Hidden = self.targetCritic2(
                 state, action, hiddenAndCellStates["targetCritic2"]
             )
-
-            noise = torch.randn_like(action) * self.noise
-            noise = noise.clamp(
-                self.noise * -3, self.noise * 3
-            )  # no more than 3std (99.7%)
-            action = (action + noise).clamp(0, 1)
+            if useNoise:
+                noise = torch.randn_like(action) * self.noise
+                noise = noise.clamp(
+                    self.noise * -3, self.noise * 3
+                )  # no more than 3std (99.7%)
+                action = (action + noise).clamp(0, 1)
         self.timeStep += 1
 
         if returnHidden:
@@ -350,6 +347,15 @@ class TD3Agent:
             done=done,
             hiddenStates=hiddenStates,
         )
+
+    def criticOperation(self, boolean):
+        """
+        Freeze critic (False), Unfreeze (True)
+        """
+        for p in self.critic.parameters():
+            p.requires_grad_(boolean)
+        for p in self.critic2.parameters():
+            p.requires_grad_(boolean)
 
     def learn(self, nextObs=None, hAndC=None):  # unused
         # If there aren't enough experiences stored to fairly sample
@@ -411,18 +417,18 @@ class TD3Agent:
             totalCriticLoss = criticLoss + critic2Loss
 
             self.criticOptimiser.zero_grad()
-            self.critic2Optimiser.zero_grad()
             totalCriticLoss.backward()
             self.criticOptimiser.step()
-            self.critic2Optimiser.step()
 
             self.learnStepCount += 1
             # update actor every other time step
             if self.learnStepCount % self.actorUpdateFreq == 0:
-                featureVecs_actor, _ = self.featureExtractor.forward(
-                    states,
-                    hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
-                )
+                self.criticOperation(False)
+                with torch.no_grad():  # misses computational graph for FE now
+                    featureVecs_actor, _ = self.featureExtractor.forward(
+                        states,
+                        hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
+                    )
                 newActions, _ = self.actor(featureVecs_actor, hiddenDict["actorHidden"])
                 criticValuation, _ = self.critic(
                     featureVecs_actor, newActions, hiddenDict["criticHidden"]
@@ -435,6 +441,10 @@ class TD3Agent:
                 self.updateNetwork(self.critic, self.targetCritic)
                 self.updateNetwork(self.critic2, self.targetCritic2)
                 self.updateNetwork(self.actor, self.targetActor)
+                self.updateNetwork(
+                    self.featureExtractor, self.targetFeatureExtractor
+                )  # how could i forget :'(
+                self.criticOperation(True)
 
     def save(self, metric: float, index: str = "") -> bool:
         """
@@ -484,11 +494,6 @@ class TD3Agent:
             )
 
             torch.save(self.critic2.state_dict(), sd / self.critic2.save_file_name)
-            torch.save(
-                self.critic2Optimiser.state_dict(),
-                sd / self.critic2.optimiser_save_file_name,
-            )
-
             torch.save(
                 self.targetCritic2.state_dict(),
                 sd / self.targetCritic2.save_file_name,
@@ -541,10 +546,6 @@ class TD3Agent:
         self.critic2.load_state_dict(
             torch.load(sd / self.critic2.save_file_name, weights_only=True)
         )
-        self.critic2Optimiser.load_state_dict(
-            torch.load(sd / self.critic2.optimiser_save_file_name, weights_only=True)
-        )
-
         self.targetCritic2.load_state_dict(
             torch.load(sd / self.targetCritic2.save_file_name, weights_only=True)
         )

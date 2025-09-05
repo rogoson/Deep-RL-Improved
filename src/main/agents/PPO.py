@@ -302,7 +302,7 @@ class PPOAgent:
         )
 
     def select_action(
-        self, observation, hiddenAndCellStates, sampling=True, returnHidden=False
+        self, state, hiddenAndCellStates, sampling=True, returnHidden=False
     ):
         with torch.no_grad():
             """
@@ -310,14 +310,13 @@ class PPOAgent:
             and the critic valuation is calculated using the critic network.
             However, during evaluation and testing, the action is selected as the mean of the distribution.
             """
-            state = observation
             distribution, actorHidden = self.actor(state, hiddenAndCellStates["actor"])
             if sampling:
                 action = distribution.sample()
             else:
                 action = distribution.mean
             criticValuation, criticHidden = self.critic(
-                observation, hiddenAndCellStates["critic"]
+                state, hiddenAndCellStates["critic"]
             )
             probabilities = distribution.log_prob(
                 action
