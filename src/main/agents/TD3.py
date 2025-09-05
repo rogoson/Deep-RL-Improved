@@ -144,9 +144,9 @@ class ActorNetwork(nn.Module):
 
         state = self.relu(self.actorFc1(hidden[-1]))
         state = self.relu(self.actorFc2(state))
-        state = self.softMax(self.actorFc3(state))
+        action = self.softMax(self.actorFc3(state))
 
-        return state, (hidden, cell)
+        return action, (hidden, cell)
 
 
 class TD3Agent:
