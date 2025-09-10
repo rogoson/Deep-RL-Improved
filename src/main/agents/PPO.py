@@ -16,6 +16,9 @@ from torch.nn import (
 from torch.distributions import Dirichlet, Independent, Normal
 from pathlib import Path
 import numpy as np
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 import wandb
@@ -299,7 +302,7 @@ class PPOAgent:
         )
 
     def select_action(
-        self, observation, hiddenAndCellStates, sampling=True, returnHidden=False
+        self, state, hiddenAndCellStates, sampling=True, returnHidden=False
     ):
         with torch.no_grad():
             """
@@ -307,14 +310,13 @@ class PPOAgent:
             and the critic valuation is calculated using the critic network.
             However, during evaluation and testing, the action is selected as the mean of the distribution.
             """
-            state = observation
             distribution, actorHidden = self.actor(state, hiddenAndCellStates["actor"])
             if sampling:
                 action = distribution.sample()
             else:
                 action = distribution.mean
             criticValuation, criticHidden = self.critic(
-                observation, hiddenAndCellStates["critic"]
+                state, hiddenAndCellStates["critic"]
             )
             probabilities = distribution.log_prob(
                 action
@@ -558,7 +560,7 @@ class PPOAgent:
             print(
                 f"— No improvement in return ({metric:.6f} vs {prev_best:.6f}); skipping save."
             )
-        return improved
+        return improved, sd
 
     def load(self, save_dir: str, index: str = ""):
         sd = (

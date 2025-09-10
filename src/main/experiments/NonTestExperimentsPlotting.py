@@ -1,5 +1,10 @@
 import os
 import numpy as np
+import yaml
+from pathlib import Path
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from .MetricComputations import computeWeightedAUC
 from main.utils.GeneralUtils import getFileWritingLocation
@@ -77,7 +82,7 @@ def plotParameterComparison(yamlConfig, parameterDict, env, agentType="ppo"):
         plt.plot(
             xValues,
             normMeanSmooth,
-            label="Validation REturns",
+            label="Validation Returns",
             linewidth=2,
             color="blue",
         )
@@ -91,8 +96,6 @@ def plotParameterComparison(yamlConfig, parameterDict, env, agentType="ppo"):
         plt.savefig(
             f"{baseFolder}/plots/{"_".join(parameter.split())}Comparison_{value}.png",
         )
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
         print(f"Saved plot for param={parameter}.")
     return {
@@ -126,15 +129,18 @@ def displayResults(aucResults, bestCurveX, bestCurveY, bestParameter):
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
-        plt.show(block=False)
-        plt.pause(2)
         plt.close()
 
 
 def runParameterComparison(yamlConfig, env, agentType="ppo"):
+
+    configDir = (
+        Path(__file__).resolve().parent.parent.parent.parent / "data" / "configs"
+    )
+
     parameterValueMappings = {
         "FEATURE OUTPUT SIZE": yamlConfig["hyperparameters"]["feature_output_sizes"],
-        "NORMALIZE DATA": ["True", "False"],
+        # "NORMALIZE DATA": ["True", "False"], # for another day :)
     }
 
     for usingLSTMFeature in [True, False]:
@@ -157,3 +163,20 @@ def runParameterComparison(yamlConfig, env, agentType="ppo"):
                 resultsDict["bestParameter"],
             )
             print("=" * 30)
+
+            configYaml = configDir / "config.yaml"
+            with configYaml.open("r") as f:
+                data = yaml.safe_load(f)
+
+            if key == "FEATURE OUTPUT SIZE":
+                agentDict = data.setdefault("agent", {})
+                typeDict = agentDict.setdefault(agentType, {})
+                featureDict = typeDict.setdefault("best_feature_output_sizes", {})
+                featureKey = "cnn" if not usingLSTMFeature else "lstm"
+                featureDict[featureKey] = resultsDict["bestParameter"]
+            # else:
+            #     boolMap = {"True": True, "False": False}
+            #     data["normalise_data"] = boolMap[resultsDict["bestParameter"]]
+
+            with configYaml.open("w") as f:
+                yaml.dump(data, f)

@@ -126,6 +126,13 @@ def createAgentFromConfig(
         )
         baseConfig.update(
             {
+                "feature_output_size": agentCfg["best_feature_output_sizes"][
+                    "cnn" if not useLstmFeature else "lstm"
+                ]
+            }
+        )
+        baseConfig.update(
+            {
                 "phase": phase,
                 "reward_function": reward_function,
                 "risk_aversion": (

@@ -1,0 +1,14 @@
+FROM rl-base:py312-cu118-v1
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONPATH="/app/src"
+
+ENV MAMBA_ROOT_PREFIX=/opt/micromamba
+ENV PATH=$MAMBA_ROOT_PREFIX/envs/py312/bin:$PATH
+
+COPY constraints.txt requirements.txt ./
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /opt/micromamba/envs/py312/bin/pip install --no-cache-dir -c constraints.txt -r requirements.txt
+
+COPY . .
+EXPOSE 8080
+CMD ["python3", "-m", "src.main.experiments.RewardTesting"]

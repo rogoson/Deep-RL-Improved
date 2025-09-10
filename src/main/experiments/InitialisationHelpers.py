@@ -1,7 +1,11 @@
 import wandb
 from main.environments.TimeSeriesEnvironment import TimeSeriesEnvironment
+from dotenv import load_dotenv
+import os
 
-wandb.login()
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
+wandb.login(key=API_KEY)
 
 
 def initialiseWandb(yamlConfig, agent, agentConfig):
@@ -11,7 +15,7 @@ def initialiseWandb(yamlConfig, agent, agentConfig):
         name=f"exp-{agentConfig['phase']}"
         + ("_NORM" if yamlConfig["normalise_data"] else ""),
         reinit=True,
-        group=f"{agentConfig['strategy']} | {agentConfig['group']}",
+        group=f"{agentConfig['strategy']} , {'LSTM' if yamlConfig['usingLSTMFeatureExtractor'] else 'CNN'}Feature | {agentConfig['group']} | {yamlConfig['active_index'].upper()}",
         mode=yamlConfig["wandb_state"],
     )
 

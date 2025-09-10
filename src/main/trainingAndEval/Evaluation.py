@@ -1,7 +1,15 @@
 from main.agents.CommonAgentFunctions import hiddenStateReset
 from main.utils.GeneralUtils import getFRLocationEvaluation
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
+import yaml
+from pathlib import Path
 import numpy as np
+import pickle
+import copy
 import os
 
 
@@ -38,7 +46,6 @@ def logDetails(LOG_DETAILS):
         plt.ylabel("Values per Index")
         plt.title("Data Over Time (using data index 0)")
         plt.grid(True, linestyle="--", alpha=0.5)  # Add a subtle grid for readability
-        plt.show()
     if LOG_OBSERVATIONS:
         plt.figure(figsize=(12, 8))  # Bigger figure for clarity
         for dim in range(observationsOverTime[0].shape[0]):
@@ -52,7 +59,6 @@ def logDetails(LOG_DETAILS):
         plt.ylabel("Values per Index")
         plt.title("Observations Vectors Over Time")
         plt.grid(True, linestyle="--", alpha=0.5)  # Add a subtle grid for readability
-        plt.show()
 
 
 def evaluateAgent(
@@ -168,18 +174,32 @@ def evaluateAgent(
         env.rendering = False
 
         if strategy in rl_strats:
-            generateAnimation = agent.save(
+            newBest, path = agent.save(
                 env.PORTFOLIO_VALUES[-1] / env.startCash, env.index
             )
-            if generateAnimation:
-                env.generateAnimation(
-                    agentType=agent.__class__.__name__,
-                    stage=agent.experimentState,
-                    index=env.index,
-                    featureExtractor=(
+            if newBest:
+                temporaryEnvState = copy.deepcopy(env.__dict__)
+                fullPath = path / "env_state.pkl"
+                with fullPath.open("wb") as f:
+                    pickle.dump(temporaryEnvState, f)
+
+                agentDetailsPath = (
+                    Path(__file__).resolve().parent.parent
+                    / "animations"
+                    / "agentAnimationDetails.yaml"
+                )
+
+                data = {
+                    "agentType": agent.__class__.__name__,
+                    "stage": agent.experimentState,
+                    "index": env.index,
+                    "featureExtractor": (
                         "CNNFeature" if agent.hasCNNFeature else "LSTMFeature"
                     ),
-                )
+                    "path": str(fullPath),
+                }
+                with agentDetailsPath.open("w") as f:
+                    yaml.dump(data, f)
 
         if strategy in rl_strats:
             if LOG_ANY:
