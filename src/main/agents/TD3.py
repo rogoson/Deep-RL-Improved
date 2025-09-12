@@ -2,7 +2,9 @@
 
 from main.agents.Memory import Memory
 import copy
-from torch.nn import Linear, LSTM, functional as F, ReLU, Tanh, Softmax
+import wandb
+import numpy as np
+from torch.nn import Linear, LSTM, init, functional as F, ReLU, Tanh, Softmax
 from pathlib import Path
 from torch.optim import Adam
 import torch
@@ -15,6 +17,15 @@ warnings.filterwarnings("error", category=UserWarning)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _SAVE_SUFFIX = "_td3"
 _OPTIMISER_SAVE_SUFFIX = "_optimiser_td3"
+
+
+def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
+    """
+    Function taken from https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
+    """
+    init.orthogonal_(layer.weight, std)
+    init.constant_(layer.bias, biasConst)
+    return layer
 
 
 class CriticNetwork(nn.Module):
@@ -52,9 +63,9 @@ class CriticNetwork(nn.Module):
             batch_first=True,
             device=device,
         )
-        self.criticFc1 = Linear(lstmHiddenSize, self.fc1_n, device=device)
-        self.criticFc2 = Linear(self.fc1_n, self.fc2_n, device=device)
-        self.criticFc3 = Linear(self.fc2_n, 1, device=device)
+        self.criticFc1 = layerInit(Linear(lstmHiddenSize, self.fc1_n, device=device))
+        self.criticFc2 = layerInit(Linear(self.fc1_n, self.fc2_n, device=device))
+        self.criticFc3 = layerInit(Linear(self.fc2_n, 1, device=device))
         self.tanh = Tanh()
 
     def initHidden(self, batchSize=1):
@@ -118,9 +129,9 @@ class ActorNetwork(nn.Module):
         )
 
         # Map state to action
-        self.actorFc1 = Linear(lstmHiddenSize, self.fc1_n, device=device)
-        self.actorFc2 = Linear(self.fc1_n, self.fc2_n, device=device)
-        self.actorFc3 = Linear(self.fc2_n, actions_n, device=device)
+        self.actorFc1 = layerInit(Linear(lstmHiddenSize, self.fc1_n, device=device))
+        self.actorFc2 = layerInit(Linear(self.fc1_n, self.fc2_n, device=device))
+        self.actorFc3 = layerInit(Linear(self.fc2_n, actions_n, device=device))
         self.relu = ReLU()
         self.softMax = Softmax(dim=1)
 
@@ -306,7 +317,7 @@ class TD3Agent:
                 noise = noise.clamp(
                     self.noise * -3, self.noise * 3
                 )  # no more than 3std (99.7%)
-                action = (action + noise).clamp(0, 1)
+                action = self.mapSimplex(action + noise)  # again for safety
         self.timeStep += 1
 
         if returnHidden:
@@ -357,6 +368,11 @@ class TD3Agent:
         for p in self.critic2.parameters():
             p.requires_grad_(boolean)
 
+    def mapSimplex(self, a: torch.Tensor):
+        a = torch.clamp(a, min=0.0)
+        a = a / a.sum(dim=1, keepdim=True).clamp_min(1e-8)
+        return a
+
     def learn(self, nextObs=None, hAndC=None):  # unused
         # If there aren't enough experiences stored to fairly sample
         # self.numberOfUpdates updates, use as many as possible
@@ -384,6 +400,7 @@ class TD3Agent:
                 hiddenDict["targetFeatureHidden"] if not self.hasCNNFeature else None,
             )
             doneArr = doneArr.to(device).unsqueeze(1)  # unsqueeze more
+            notDone = 1 - doneArr.float()
 
             with torch.no_grad():
                 targetActions, _ = self.targetActor(
@@ -391,7 +408,7 @@ class TD3Agent:
                 )
                 noise = torch.randn_like(targetActions) * self.targetNoise
                 noise = noise.clamp(self.targetNoise * -3, self.targetNoise * 3)
-                targetActions = (targetActions + noise).clamp(0, 1)
+                targetActions = self.mapSimplex(targetActions + noise)
 
                 q1, _ = self.targetCritic(
                     newTargetFeatureVecs,
@@ -407,10 +424,14 @@ class TD3Agent:
                 targetQValue = torch.min(
                     q1, q2
                 )  # Take min to reduce overestimation bias
-                targetQValue = rewards + ~doneArr * self.gamma * targetQValue
+                targetQValue = rewards + notDone * self.gamma * targetQValue
 
             q1, _ = self.critic(featureVecs, actions, hiddenDict["criticHidden"])
             q2, _ = self.critic2(featureVecs, actions, hiddenDict["critic2Hidden"])
+
+            td1 = (q1.detach() - targetQValue).abs().mean()
+            td2 = (q2.detach() - targetQValue).abs().mean()
+            wandb.log({"td_err1": td1.item(), "td_err2": td2.item()})
 
             criticLoss = F.mse_loss(targetQValue, q1)
             critic2Loss = F.mse_loss(targetQValue, q2)
@@ -445,6 +466,12 @@ class TD3Agent:
                     self.featureExtractor, self.targetFeatureExtractor
                 )  # how could i forget :'(
                 self.criticOperation(True)
+                wandb.log(
+                    {
+                        "actor_loss": actorLoss.item(),
+                        "critic_loss": totalCriticLoss.item(),
+                    }
+                )
 
     def save(self, metric: float, index: str = "") -> bool:
         """

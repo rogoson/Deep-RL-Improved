@@ -1,5 +1,5 @@
 project_name: "RL-Portfolio-Management_IMPROVEMENTS"
-epochs: 25
+epochs: 15
 time_window: 30
 rl_strats: ["PPOLSTM", "TD3"]
 baseline: ["RANDOM"]
@@ -128,20 +128,20 @@ agent:
   ppo:
     gae_lambda: 0.98
     clip_param: 0.2
-    batch_size: 24
+    batch_size: 48
     learning_rate: 0.0003
     fc1_n: 128
     fc2_n: 128
     feature_output_size: 128
-    epochs: 1
+    epochs: 4
     entropy_coef: 0.01
     actor_noise: 0
-    norm_advantages: false
-    use_entropy: false
+    norm_advantages: true
+    use_entropy: true
     use_dirichlet: true
     log_concentration: false
     use_normals: false # likely requires softmax; dividing may not work for short selling
-    learning_frequency: 24
+    learning_frequency: 48
     strategy: "PPOLSTM"
   td3:
     alpha: 0.001
