@@ -24,3 +24,4 @@ rootkeyAWS.csv
 instanceKeyPair.pem
 projectExplanation/
 PlotNeuralNet/
+temp_config*

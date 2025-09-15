@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+timeout /t 2 >nul
+
 REM Get the market index from the command line
 set "MARKET_INDEX=%1"
 
