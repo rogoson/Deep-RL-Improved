@@ -1,5 +1,5 @@
 project_name: "RL-Portfolio-Management_IMPROVEMENTS"
-epochs: 15
+epochs: 10 # don't think it really needs that many tbh
 time_window: 30
 rl_strats: ["PPOLSTM", "TD3"]
 baseline: ["RANDOM"]
