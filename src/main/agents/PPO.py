@@ -293,12 +293,17 @@ class PPOAgent:
         # rate for the entire setup.
         """
         self.optimizer = torch.optim.Adam(
-            (
-                list(self.actor.parameters())
-                + list(self.critic.parameters())
-                + list(featureExtractor.parameters())
-            ),
-            lr=self.alpha,
+            [
+                {
+                    "params": self.featureExtractor.parameters(),
+                    "lr": self.alpha * 2.0,
+                },  # push step more
+                {
+                    "params": list(self.actor.parameters())
+                    + list(self.critic.parameters()),
+                    "lr": self.alpha,
+                },
+            ]
         )
 
     def select_action(
@@ -433,9 +438,7 @@ class PPOAgent:
 
                 criticOut = criticOut.squeeze(-1)  # that was false
 
-                newProbs = actorDist.log_prob(
-                    actions
-                )  # results in 0 distribution shift for batchsize=maxsize, but that means it works
+                newProbs = actorDist.log_prob(actions)
 
                 if self.useEntropy:
                     # encourage exploration by adding entropy to the loss
@@ -467,14 +470,18 @@ class PPOAgent:
                     raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
                 totalLoss = (
-                    actorLoss + 0.5 * criticLoss - self.entropyCoefficient * entropy
+                    actorLoss
+                    + 0.5 * criticLoss
+                    - (
+                        self.entropyCoefficient * entropy / self.actions_n
+                    )  # linearly scale down entropy contribution
                 )
 
                 self.optimizer.zero_grad()
                 totalLoss.backward()
                 # Gradient Clipping - same as Zou et al. (2024)
                 torch.nn.utils.clip_grad_norm_(
-                    self.optimizer.param_groups[0]["params"], max_norm=0.5
+                    self.optimizer.param_groups[0]["params"], max_norm=1.0
                 )
                 self.optimizer.step()
 

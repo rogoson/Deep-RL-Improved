@@ -1,9 +1,30 @@
 import torch
-from torch.nn import Linear, LSTM, Tanh, Module
+import numpy as np
+from torch.nn import Linear, LSTM, ReLU, Module, init
 
 _SAVE_SUFFIX = "_lstm"
 
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
+
+
+def layerInit(layer, std=np.sqrt(2), biasConst=0.0):
+    """
+    Function taken from https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
+    """
+    init.orthogonal_(layer.weight, std)
+    init.constant_(layer.bias, biasConst)
+    return layer
+
+
+def initialiseForgetBias(
+    lstm: torch.nn.LSTM, forgetBias: float = 1.0
+):  # forget less! (initially)
+    H = lstm.hidden_size
+    suffix = "_l0"
+    for biasName in [f"bias_ih{suffix}", f"bias_hh{suffix}"]:
+        b = getattr(lstm, biasName)
+        # [i, f, g, o], forget slice is from [H:2H]
+        b.data[H : 2 * H].fill_(forgetBias)
 
 
 class LstmFeatureExtractor(Module):
@@ -39,10 +60,20 @@ class LstmFeatureExtractor(Module):
             batch_first=True,
             device=device,
         )
-        self.featureExtractorfc1 = Linear(lstmHiddenSize, lstmHiddenSize, device=device)
-        self.featureExtractorfc2 = Linear(lstmHiddenSize, lstmHiddenSize, device=device)
-        self.featureExtractorfc3 = Linear(lstmHiddenSize, lstmOutputSize, device=device)
-        self.tanh = Tanh()
+        initialiseForgetBias(self.featureLSTM, forgetBias=2.0)
+        self.featureExtractorfc1 = layerInit(
+            Linear(lstmHiddenSize, lstmHiddenSize, device=device)
+        )
+        self.featureExtractorfc2 = layerInit(
+            Linear(lstmHiddenSize, lstmHiddenSize, device=device)
+        )
+        self.featureExtractorfc3 = layerInit(
+            Linear(lstmHiddenSize, lstmOutputSize, device=device)
+        )
+        self.postLSTMNorm = torch.nn.LayerNorm(
+            self.lstmHiddenSize, device=device
+        )  # might normalise but could be similar problem
+        self.relu = ReLU()
 
     def forward(self, x, hiddenState=None):
         """
@@ -59,9 +90,10 @@ class LstmFeatureExtractor(Module):
             hiddenState = self.initHidden(batchSize=x.size(0))
         self.featureLSTM.flatten_parameters()
         _, (hidden, cell) = self.featureLSTM(x, hiddenState)
-        features = self.tanh(self.featureExtractorfc1(hidden[-1]))
-        features = self.tanh(self.featureExtractorfc2(features))
-        features = self.tanh(self.featureExtractorfc3(features))
+        hiddenNormed = self.postLSTMNorm(hidden[-1])
+        features = self.relu(self.featureExtractorfc1(hiddenNormed))
+        features = self.relu(self.featureExtractorfc2(features))
+        features = self.featureExtractorfc3(features)
         return features, ((hidden, cell) if self.returnHiddenState else hiddenState)
 
     def initHidden(self, batchSize=1):
