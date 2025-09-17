@@ -13,7 +13,7 @@ def createAgentFromConfig(
 ):
     """
     Builds configuration and returns an RL agent instance using config-driven parameters.
-    Supports multiple agent types like 'ppo', 'td3', etc.
+    Supports multiple agent types like 'ppo', 'td3'.
     """
     if agentType not in yamlConfig["agent"]:
         raise ValueError(f"Agent type '{agentType}' not found in configuration.")
@@ -155,7 +155,7 @@ def createAgentFromConfig(
             lstmOutputSize=baseConfig.get("feature_output_size", 128),  # Default
             returnHiddenState=yamlConfig["feature_extractors"]["lstm"].get(
                 "return_hidden_state", False
-            ),  # Default to False unless specified
+            ),
         )
     else:
         featureExtractor = CNNFeatureExtractor(

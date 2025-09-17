@@ -7,8 +7,6 @@ USE_PRIORITY = True
 class Memory:
     """
     Creates a memory buffer for storing experiences.
-    This is inspired by the same code used by Phil Tabor in his PPO tutorial, but is tensorized
-    for faster computation and also because numpy and pytorch don't like each other very much.
     """
 
     def __init__(

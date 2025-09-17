@@ -140,7 +140,7 @@ agent:
     use_entropy: true
     use_dirichlet: true
     log_concentration: false
-    use_normals: false # likely requires softmax; dividing may not work for short selling
+    use_normals: false
     learning_frequency: 48
     strategy: "PPOLSTM"
   td3:
@@ -173,7 +173,6 @@ evaluation:
   log_observations: false
   log_input_data: false
 
-#argparse or something?
 experiments:
   _common: &defaults
     dataType: "validation"
@@ -189,7 +188,7 @@ experiments:
     dataType: "testing"
     benchmark: null
     comparisonStrat: null
-    use_noise_eval: false #possible comparison with perturbed?
+    use_noise_eval: false
     for_learning_curve: True
     source_folder: "main"
 

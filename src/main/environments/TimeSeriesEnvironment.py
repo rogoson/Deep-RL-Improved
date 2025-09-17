@@ -38,7 +38,6 @@ class TimeSeriesEnvironment(gym.Env):
         perturbationNoise,
         agentRiskAversion=0,
         transactionCost=0.001,
-        render_config=None,
     ):
 
         self.marketData = None  # Stores percentage price changes over time
@@ -134,9 +133,7 @@ class TimeSeriesEnvironment(gym.Env):
 
                 # arbitrary, but popular indicators -> Subset of those used between Soleymani & Zou.
                 ohlcData[ticker]["ATR"] = ta.ATR(high, low, close, timeperiod=14)
-                ohlcData[ticker]["Momentum"] = ta.MOM(
-                    close, timeperiod=1
-                )  # Momentum is used by Soleymani, not (RoC=Momentum Oscillator, my mistake)
+                ohlcData[ticker]["Momentum"] = ta.MOM(close, timeperiod=1)
                 ohlcData[ticker]["CCI"] = ta.CCI(high, low, close, timeperiod=20)
                 macd, signal, hist = ta.MACD(
                     close, fastperiod=12, slowperiod=26, signalperiod=9
@@ -176,7 +173,7 @@ class TimeSeriesEnvironment(gym.Env):
         def roundToSf(array, sigFigs=4):
             """
             Round a NumPy array or Pandas Series to the specified number of significant figures
-            Decision of 4 sigfigs is arbitrary, but higher values will likely lead to instability.
+            Decision of 4 sigfigs is brute, but higher values will likely lead to instability.
             """
             return np.array(
                 [
@@ -219,10 +216,6 @@ class TimeSeriesEnvironment(gym.Env):
 
         if redownloadData:
             for productId in productIds:
-                """
-                I was previously working with Crypto data also, so I implemented this to ensure
-                column names are consistent across all dataframes.
-                """
                 dataframe = None
 
                 try:
@@ -243,6 +236,7 @@ class TimeSeriesEnvironment(gym.Env):
 
         def verifyDataConsistency(dataframes, stage="None"):
             """
+            AI Supported
             Strictly verifies that all dataframes have the same columns (in the same order)
             and the same index (ordered identically). Raises a ValueError if any inconsistency is found.
 
@@ -282,6 +276,7 @@ class TimeSeriesEnvironment(gym.Env):
             )
 
         def dropNaN(data, logDroppedRows=True):
+            # AI supported
             # Create new dictionaries to store the cleaned data and the dropped rows
             cleanedData = {}
             droppedRows = {}
@@ -543,7 +538,7 @@ class TimeSeriesEnvironment(gym.Env):
             df = dframe.copy()
             df.reset_index(drop=True)
             if dataType == "validation":
-                # only add noise if validation data. Else (if testing) do not.
+                # only add noise if validation data (if even adding). Else (if testing) do not.
                 if noise is not None:
                     df += noise * df.std().values  # make autoregressive?
             df["Return"] = df["Close"].pct_change().fillna(0)
@@ -647,9 +642,7 @@ class TimeSeriesEnvironment(gym.Env):
     ):  # if random, no need to return next obs
         newPortfolioValue = self.calculatePortfolioValue(
             action,
-            self.marketData.iloc[
-                self.timeStep + 1
-            ].values,  # issue must be something like the data is not cached to be re-set - need to save prior env state (portfolio values, market data etc)
+            self.marketData.iloc[self.timeStep + 1].values,
         )
         absolutePortfolioDifference = newPortfolioValue - self.PORTFOLIO_VALUES[-1]
         self.timeStep += 1
@@ -785,7 +778,7 @@ class TimeSeriesEnvironment(gym.Env):
 
     def getCVaRReward(self, r, useCVaR=True):
         """
-        This RF is BOOTY
+        This RF is BOOTY, not wise to expect an agent to learn a tail-end shifts.
         CVaR reward calculation.
         :param r: The reward to be calculated.
         :param useCVaR: Whether to use CVaR or not. If not, the reward is just the normalised value of the reward.
