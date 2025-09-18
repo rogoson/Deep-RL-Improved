@@ -79,7 +79,7 @@ def evaluateAgent(
     strategy=None,
 ):
     """
-    Docstring would be helpful.
+    Evalauation function - the agent, or some policy, is run on some out of sample data.
     """
     toRun = [strategy]
     if benchmark:

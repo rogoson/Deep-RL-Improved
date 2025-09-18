@@ -1,10 +1,3 @@
-# Based largely on code from Phil Tabor's tutorial - https://youtu.be/hlv79rcHws0?si=WouU8XbXytVISCQe
-# some changes were made in order to utilise a continuous action space
-
-"""
-Much of the code in this file may resemble code that was sumbitted for the CM30359 Coursework.
-I adapted some code used for our TD3 implementation where possible and changed the rest where needed.
-"""
 from main.agents.Memory import Memory
 from torch.nn import (
     Linear,
@@ -288,9 +281,7 @@ class PPOAgent:
             modelName="critic",
         ).to(device)
         """
-        # Optimizer. Since I backpropagate the feature extractor based on the actor and critic,
-        #  I just decided to merge the three optimizers into one and rely on a singular learning
-        # rate for the entire setup.
+        # Optimizer - one.
         """
         self.optimizer = torch.optim.Adam(
             [
@@ -313,7 +304,7 @@ class PPOAgent:
             """
             Action sampling and selection. The action is sampled from the Dirichlet distribution
             and the critic valuation is calculated using the critic network.
-            However, during evaluation and testing, the action is selected as the mean of the distribution.
+            However, during evaluation and testing, the action is greedily selected as the mean of the distribution.
             """
             distribution, actorHidden = self.actor(state, hiddenAndCellStates["actor"])
             if sampling:
@@ -430,9 +421,6 @@ class PPOAgent:
                 )
                 features = features.unsqueeze(1)  # crtical to be processed as batch
 
-                """
-                Much of this follows the same logic as Phil Tabor's PPO implementation:
-                """
                 actorDist, _ = self.actor(features, actorHidden)
                 criticOut, _ = self.critic(features, criticHidden)
 
@@ -465,7 +453,7 @@ class PPOAgent:
                 try:
                     criticLoss = F.huber_loss(
                         criticOut, returns
-                    )  # MSE gave MASSIVE losses
+                    )  # MSE gave MASSIVE losses (earlier on in implementation)
                 except UserWarning as e:
                     raise RuntimeError(f"Shape mismatch warning encountered: {e}")
 
@@ -517,6 +505,7 @@ class PPOAgent:
     def save(self, metric: float, index: str = ""):
         """
         Saves actor/critic/optimizer/featureExtractor only if `metric` beats previous best.
+        AI supported save functions
         """
         sd = (
             Path(__file__).parent
