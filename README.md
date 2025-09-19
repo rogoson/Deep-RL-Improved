@@ -11,6 +11,8 @@ Major improvements I have made include:
 - Be evaluated on three distinct portfolios of the DOW, FTSE-100, and SSE50.
 - The ability to visually render the trading period.
   - hit `localhost:{port}/generateAnimation` when the container is running to do this. Find the relevant port for the specific index in `fullDockerPipeline.bat`. You can see the result if you check the dockerfiles at `src/main/animations/{index}/{agent}/{stage}/`, where `index` is dow, ftse100, or sse50, and `stage` is either hyperparameter-tuning or reward testing (depending on what you're running).
+    An example of a generated animation (only 5 seconds):
+    ![til](./exampleAnimation.gif)
 - Dockerisation of the process, for portability.
 - A REST server (implementing multithreading), to check the status of the docker containers and generate animations on demand.
   - The health endpoint is at `localhost:{port}/health`.
