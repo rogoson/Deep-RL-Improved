@@ -3,6 +3,7 @@ import gymnasium as gym
 import torch
 import os
 import warnings
+import seaborn as sns
 from main.utils.GeneralUtils import normData
 from pathlib import Path
 import pandas as pd
@@ -367,6 +368,30 @@ class TimeSeriesEnvironment(gym.Env):
 
         return dataframes, detailsToReturn
 
+    def getCorrelation(self, DATA):
+        returns = []
+        for key, df in DATA.items():
+            returns.append(df["Close"].pct_change().fillna(0).values)
+        return np.corrcoef(np.array(returns), rowvar=True)
+
+    def saveCorrelations(self, matrixOne, matrixTwo, typeOne, typeTwo, sampleSet):
+        fig, axes = plt.subplots(1, 2, figsize=(22, 8), constrained_layout=True)
+        ax1, ax2 = axes.flatten()
+
+        sns.heatmap(matrixOne, ax=ax1, cmap="coolwarm", annot=True, fmt=".2f")
+        ax1.set_title(typeOne)
+
+        sns.heatmap(matrixTwo, ax=ax2, cmap="coolwarm", annot=True, fmt=".2f")
+        ax2.set_title(typeTwo)
+        mae = np.sum(np.abs(matrixOne - matrixTwo))
+        plt.suptitle(f"Correlation MAE: {mae:.4f}")
+
+        higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        file = f"{higherDir}/plotsAndPortfolioTrajectories/{self.index}/"
+        os.makedirs(file, exist_ok=True)
+        plt.savefig(f"{file}/CorrelationMatrices_{sampleSet}")
+        plt.close()
+
     def partitionData(self, data, configuration):
         """
         Splits data into train, val, test portions. These are non-overlapping.
@@ -437,6 +462,26 @@ class TimeSeriesEnvironment(gym.Env):
         if not self.hasVisualised:
             self.visualiseData(datasets)
 
+        trainingCorrelations = self.getCorrelation(TRAINING_DATA)
+        validationCorrelations = self.getCorrelation(VALIDATION_DATA)
+        trainingValidationCorrelations = self.getCorrelation(TRAINING_VALIDATION_DATA)
+        testingCorrelations = self.getCorrelation(TESTING_DATA)
+
+        self.saveCorrelations(
+            trainingCorrelations,
+            validationCorrelations,
+            "Training Correlation",
+            "Validation Correlation",
+            "Hyper_Tuning",
+        )
+        self.saveCorrelations(
+            trainingValidationCorrelations,
+            testingCorrelations,
+            "Training + Validation Correlation",
+            "Testing Correlation",
+            "Testing",
+        )
+
         datasets.update(details)
         self.datasetsAndDetails = datasets
 
@@ -487,10 +532,14 @@ class TimeSeriesEnvironment(gym.Env):
             plt.xlabel("Time")
             plt.ylabel("Normalized Close Price")
             plt.title(
-                f"{" ".join([part.capitalize() for part in setName.split("_")])} - Normalized Close Prices with Average"
+                f"{self.index} - {" ".join([part.capitalize() for part in setName.split("_")])} - Normalized Close Prices with Average"
             )
             plt.legend(loc="upper right", bbox_to_anchor=(1.2, 1), fontsize=8, ncol=1)
             plt.grid(True, linestyle="--", alpha=0.5)
+            higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            file = f"{higherDir}/plotsAndPortfolioTrajectories/{self.index}/"
+            os.makedirs(file, exist_ok=True)
+            plt.savefig(f"{file}/{setName}")
             plt.close()
 
     def demonstrateNoiseEffect(self, perturbationNoise):
@@ -911,7 +960,7 @@ class TimeSeriesEnvironment(gym.Env):
         CVaR = np.mean(sortedReturns[:indexToBePicked])
         return CVaR
 
-    def animatePortfolio(self, save_path=None):
+    def animatePortfolio(self, save_path=None, agentType="", featureExtractor=""):
         fig, (ax1, ax2, ax3) = plt.subplots(
             3, 1, figsize=(12, 10), constrained_layout=True
         )
@@ -989,6 +1038,8 @@ class TimeSeriesEnvironment(gym.Env):
             except Exception as e:
                 print(f"Error at frame {frame}: {e}")
                 raise e
+
+        fig.suptitle(f"Rendering for: {agentType} | {self.index} | {featureExtractor}")
 
         ani = FuncAnimation(
             fig, update, frames=len(self.PORTFOLIO_VALUES), repeat=False
@@ -1095,10 +1146,12 @@ class TimeSeriesEnvironment(gym.Env):
         """
         return self.rewardFunction
 
-    def generateAnimation(self, agentType, stage, index, featureExtractor):
+    def generateAnimation(self, agentType, stage, featureExtractor):
         higherDir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        file = f"{higherDir}/animations/{index}/{agentType}/{stage}/{featureExtractor}/"
+        file = f"{higherDir}/animations/{self.index}/{agentType}/{stage}/{featureExtractor}/"
         if not os.path.exists(file):
             os.makedirs(file)
-        self.animatePortfolio(f"{file}/portfolio_animation.mp4")
+        self.animatePortfolio(
+            f"{file}/portfolio_animation.mp4", agentType, featureExtractor
+        )
         return file

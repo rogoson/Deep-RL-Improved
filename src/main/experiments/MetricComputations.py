@@ -12,8 +12,8 @@ def computeWeightedAUC(yValues, xValues=None, weightPower=1.0):
     normTime = (xValues - xValues.min()) / (xValues.max() - xValues.min())
     weights = normTime**weightPower
     weightedY = yValues * weights
-    auc = np.trapezoid(weightedY, xValues)
-    totalWeight = np.trapezoid(weights, xValues)
+    auc = np.trapz(weightedY, xValues)
+    totalWeight = np.trapz(weights, xValues)
     normalizedAUC = auc / totalWeight if totalWeight > 0 else 0
     return normalizedAUC
 
