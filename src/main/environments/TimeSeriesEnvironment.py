@@ -1004,7 +1004,6 @@ class TimeSeriesEnvironment(gym.Env):
                     )
                 ax2.set_title("Portfolio Weights Over Time")
                 ax2.set_ylabel("Weight")
-                ax2.set_xlabel("Step")
 
                 min_val = self.allocations[frame].min().item()
                 max_val = self.allocations[frame].max().item()
@@ -1039,7 +1038,11 @@ class TimeSeriesEnvironment(gym.Env):
                 print(f"Error at frame {frame}: {e}")
                 raise e
 
-        fig.suptitle(f"Rendering for: {agentType} | {self.index} | {featureExtractor}")
+        fig.suptitle(
+            f"Rendering for: {agentType} | Index = {self.index.upper()} | Extractor = {featureExtractor}"
+        )
+
+        fig.set_constrained_layout(False)  # for the animations
 
         ani = FuncAnimation(
             fig, update, frames=len(self.PORTFOLIO_VALUES), repeat=False
