@@ -84,7 +84,6 @@ class RestHandler(BaseHTTPRequestHandler):
                 videoPath = videoEnvironment.generateAnimation(
                     agentType=videoConfig["agentType"],
                     stage=videoConfig["stage"],
-                    index=videoConfig["index"],
                     featureExtractor=videoConfig["featureExtractor"],
                 )
 

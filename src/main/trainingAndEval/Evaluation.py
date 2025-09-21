@@ -192,7 +192,6 @@ def evaluateAgent(
                 data = {
                     "agentType": agent.__class__.__name__,
                     "stage": agent.experimentState,
-                    "index": env.index,
                     "featureExtractor": (
                         "CNNFeature" if agent.hasCNNFeature else "LSTMFeature"
                     ),
