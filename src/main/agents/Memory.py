@@ -141,6 +141,8 @@ class Memory:
 
         self.ptr += 1
         self.memoryFull = self.ptr == self.maxSize
+        if self.memoryFull:
+            self.clear()
 
     def genDist(self):
         if (
