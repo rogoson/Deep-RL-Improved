@@ -141,7 +141,7 @@ class Memory:
 
         self.ptr += 1
         self.memoryFull = self.ptr == self.maxSize
-        if self.memoryFull:
+        if self.memoryFull and self.isTD3Buffer:
             self.clear()
 
     def genDist(self):
