@@ -295,6 +295,7 @@ class TD3Agent:
         self.targetCritic2.load_state_dict(self.critic2.state_dict())
         self.targetFeatureExtractor.load_state_dict(self.featureExtractor.state_dict())
         self.scaler = GradScaler()
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def select_action(
         self, state, hiddenAndCellStates, returnHidden=False, useNoise=True
@@ -394,7 +395,7 @@ class TD3Agent:
             actions = actions.to(device)
             rewards = rewards.to(device).unsqueeze(1)
             newStates = newStates.to(device)
-            with autocast():
+            with autocast(device_type=self.device):
                 featureVecs, _ = self.featureExtractor.forward(
                     states,
                     hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
@@ -410,7 +411,7 @@ class TD3Agent:
             doneArr = doneArr.to(device).unsqueeze(1)  # unsqueeze more
             notDone = 1 - doneArr.float()
 
-            with torch.no_grad():
+            with torch.no_grad(), autocast(device_type=self.device):
                 targetActions, _ = self.targetActor(
                     newTargetFeatureVecs, hiddenDict["targetActorHidden"]
                 )
@@ -434,7 +435,7 @@ class TD3Agent:
                 )  # Take min to reduce overestimation bias
                 targetQValue = rewards + notDone * self.gamma * targetQValue
 
-            with autocast():
+            with autocast(device_type=self.device):
                 q1, _ = self.critic(featureVecs, actions, hiddenDict["criticHidden"])
                 q2, _ = self.critic2(featureVecs, actions, hiddenDict["critic2Hidden"])
 
@@ -452,7 +453,7 @@ class TD3Agent:
             # update actor every other time step
             if self.learnStepCount % self.actorUpdateFreq == 0:
                 self.criticOperation(False)
-                with autocast():
+                with autocast(device_type=self.device):
                     featureVecs_actor, _ = self.featureExtractor.forward(
                         states,
                         hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
