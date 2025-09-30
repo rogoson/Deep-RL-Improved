@@ -467,6 +467,10 @@ class TD3Agent:
                     actorLoss = -criticValuation.mean()
                 self.actorOptimiser.zero_grad()
                 self.scaler.scale(actorLoss).backward()
+                self.scaler.unscale_(self.actorOptimiser)
+                torch.nn.utils.clip_grad_norm_(
+                    self.actorOptimiser.param_groups[0]["params"], max_norm=1.0
+                )
                 self.scaler.step(self.actorOptimiser)
 
                 self.criticOperation(True)
@@ -476,6 +480,10 @@ class TD3Agent:
                         "critic_loss": totalCriticLoss.item(),
                     }
                 )
+            self.scaler.unscale_(self.criticOptimiser)
+            torch.nn.utils.clip_grad_norm_(
+                self.criticOptimiser.param_groups[0]["params"], max_norm=1.0
+            )
             self.scaler.step(self.criticOptimiser)
             self.scaler.update()
 
