@@ -32,4 +32,5 @@ def test_actualTesting():
     rewTesting.trainTestingAgents(yamlConfig=yamlConfiguration, agentType="td3")
 
 
-test_hyperparameterTuning()
+yamlConfiguration["usingLSTMFeatureExtractor"] = True
+test_actualTesting()
