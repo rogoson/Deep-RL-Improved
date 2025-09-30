@@ -21,6 +21,6 @@ def runExperimentFunction(experimentFunction):
         yamlConfiguration = yaml.safe_load(file)
 
     startServer()
-    experimentFunction(yamlConfig=yamlConfiguration, agentType="ppo")
     experimentFunction(yamlConfig=yamlConfiguration, agentType="td3")
+    experimentFunction(yamlConfig=yamlConfiguration, agentType="ppo")
     copyOver()

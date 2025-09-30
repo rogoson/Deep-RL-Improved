@@ -4,6 +4,7 @@ from main.agents.Memory import Memory
 import copy
 import wandb
 import numpy as np
+from torch.amp import autocast, GradScaler
 from torch.nn import Linear, LSTM, init, functional as F, ReLU, Tanh, Softmax
 from pathlib import Path
 from torch.optim import Adam
@@ -293,6 +294,7 @@ class TD3Agent:
         self.targetCritic.load_state_dict(self.critic.state_dict())
         self.targetCritic2.load_state_dict(self.critic2.state_dict())
         self.targetFeatureExtractor.load_state_dict(self.featureExtractor.state_dict())
+        self.scaler = GradScaler()
 
     def select_action(
         self, state, hiddenAndCellStates, returnHidden=False, useNoise=True
@@ -389,16 +391,22 @@ class TD3Agent:
                 hiddenDict[f"{name}Hidden"] = (h, c) if not self.hasCNNFeature else None
 
             states = states.to(device)
-            featureVecs, _ = self.featureExtractor.forward(
-                states, hiddenDict["featureHidden"] if not self.hasCNNFeature else None
-            )
             actions = actions.to(device)
             rewards = rewards.to(device).unsqueeze(1)
             newStates = newStates.to(device)
-            newTargetFeatureVecs, _ = self.targetFeatureExtractor.forward(
-                newStates,
-                hiddenDict["targetFeatureHidden"] if not self.hasCNNFeature else None,
-            )
+            with autocast():
+                featureVecs, _ = self.featureExtractor.forward(
+                    states,
+                    hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
+                )
+                newTargetFeatureVecs, _ = self.targetFeatureExtractor.forward(
+                    newStates,
+                    (
+                        hiddenDict["targetFeatureHidden"]
+                        if not self.hasCNNFeature
+                        else None
+                    ),
+                )
             doneArr = doneArr.to(device).unsqueeze(1)  # unsqueeze more
             notDone = 1 - doneArr.float()
 
@@ -426,45 +434,40 @@ class TD3Agent:
                 )  # Take min to reduce overestimation bias
                 targetQValue = rewards + notDone * self.gamma * targetQValue
 
-            q1, _ = self.critic(featureVecs, actions, hiddenDict["criticHidden"])
-            q2, _ = self.critic2(featureVecs, actions, hiddenDict["critic2Hidden"])
+            with autocast():
+                q1, _ = self.critic(featureVecs, actions, hiddenDict["criticHidden"])
+                q2, _ = self.critic2(featureVecs, actions, hiddenDict["critic2Hidden"])
 
-            td1 = (q1.detach() - targetQValue).abs().mean()
-            td2 = (q2.detach() - targetQValue).abs().mean()
-            wandb.log({"td_err1": td1.item(), "td_err2": td2.item()})
+                td1 = (q1.detach() - targetQValue).abs().mean()
+                td2 = (q2.detach() - targetQValue).abs().mean()
+                wandb.log({"td_err1": td1.item(), "td_err2": td2.item()})
 
-            criticLoss = F.mse_loss(targetQValue, q1)
-            critic2Loss = F.mse_loss(targetQValue, q2)
-            totalCriticLoss = criticLoss + critic2Loss
+                criticLoss = F.mse_loss(targetQValue, q1)
+                critic2Loss = F.mse_loss(targetQValue, q2)
+                totalCriticLoss = criticLoss + critic2Loss
 
             self.criticOptimiser.zero_grad()
-            totalCriticLoss.backward()
-            self.criticOptimiser.step()
+            self.scaler.scale(totalCriticLoss).backward()
 
-            self.learnStepCount += 1
             # update actor every other time step
             if self.learnStepCount % self.actorUpdateFreq == 0:
                 self.criticOperation(False)
-                with torch.no_grad():  # misses computational graph for FE now
+                with autocast():
                     featureVecs_actor, _ = self.featureExtractor.forward(
                         states,
                         hiddenDict["featureHidden"] if not self.hasCNNFeature else None,
                     )
-                newActions, _ = self.actor(featureVecs_actor, hiddenDict["actorHidden"])
-                criticValuation, _ = self.critic(
-                    featureVecs_actor, newActions, hiddenDict["criticHidden"]
-                )
-                actorLoss = -criticValuation.mean()
+                    newActions, _ = self.actor(
+                        featureVecs_actor, hiddenDict["actorHidden"]
+                    )
+                    criticValuation, _ = self.critic(
+                        featureVecs_actor, newActions, hiddenDict["criticHidden"]
+                    )
+                    actorLoss = -criticValuation.mean()
                 self.actorOptimiser.zero_grad()
-                actorLoss.backward()
-                self.actorOptimiser.step()
+                self.scaler.scale(actorLoss).backward()
+                self.scaler.step(self.actorOptimiser)
 
-                self.updateNetwork(self.critic, self.targetCritic)
-                self.updateNetwork(self.critic2, self.targetCritic2)
-                self.updateNetwork(self.actor, self.targetActor)
-                self.updateNetwork(
-                    self.featureExtractor, self.targetFeatureExtractor
-                )  # how could i forget :'(
                 self.criticOperation(True)
                 wandb.log(
                     {
@@ -472,6 +475,15 @@ class TD3Agent:
                         "critic_loss": totalCriticLoss.item(),
                     }
                 )
+            self.scaler.step(self.criticOptimiser)
+            self.scaler.update()
+
+            self.updateNetwork(self.critic, self.targetCritic)
+            self.updateNetwork(self.critic2, self.targetCritic2)
+            if self.learnStepCount % self.actorUpdateFreq == 0:
+                self.updateNetwork(self.actor, self.targetActor)
+            self.updateNetwork(self.featureExtractor, self.targetFeatureExtractor)
+            self.learnStepCount += 1
 
     def save(self, metric: float, index: str = "") -> bool:
         """
