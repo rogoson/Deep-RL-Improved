@@ -21,6 +21,10 @@ def runExperimentFunction(experimentFunction):
         yamlConfiguration = yaml.safe_load(file)
 
     startServer()
+    originalEpochs = yamlConfiguration["epochs"]
+    td3Epochs = 2  # manualOverride
+    yamlConfiguration["epochs"] = td3Epochs
     experimentFunction(yamlConfig=yamlConfiguration, agentType="td3")
+    yamlConfiguration["epochs"] = originalEpochs
     experimentFunction(yamlConfig=yamlConfiguration, agentType="ppo")
     copyOver()

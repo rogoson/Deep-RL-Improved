@@ -1,12 +1,13 @@
 from itertools import cycle
 import os
 import numpy as np
+import pandas as pd
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from .MetricComputations import scoreFormula, maxDrawdown
-from main.utils.TabulationUtils import tabulate_neatly
+from main.utils.TabulationUtils import format_latex_table
 from main.utils.GeneralUtils import getFileWritingLocation
 
 
@@ -141,8 +142,8 @@ def tabulateBestTestSetPerformance(
 ):
     # Tabulate best agents for this seed
     for seed in yamlConfig["varied_base_seeds"]:
-        table = [
-            [
+        table = pd.DataFrame(
+            columns=[
                 "Reward Function",
                 "Cumulative Return",
                 "Maximum Drawdown",
@@ -150,30 +151,34 @@ def tabulateBestTestSetPerformance(
                 "Score",
                 "Training Timesteps Elapsed",
             ]
-        ]
+        )
+
         for rewardFunc in rewardFunctions:
             properName = rewardFunc.split("_")
             tabulatedName = f"{properName[0] + (f' = {properName[1]}' if len(properName) > 1 else '')}"
+
             metrics = scoreFormula(
                 bestTestSetPerformance[(rewardFunc, seed)][-1],
                 randomMetrics["average_random_return"],
                 yamlConfig=yamlConfig,
             )
-            table.append(
-                [
-                    tabulatedName,
-                    metrics["Cumulative \nReturn (%)"],
-                    metrics["Maximum \nDrawdown (%)"],
-                    metrics["Sharpe Ratio"],
-                    metrics["Score"],
-                    bestTestSetPerformance[(rewardFunc, seed)][2],
-                ]
-            )
-        tabulate_neatly(
-            table,
-            headers="firstrow",
-            title=f"Seed {seed}: Best Agents and Their Test-Set Performance",
-        )
+
+            table.loc[len(table)] = [
+                tabulatedName,
+                metrics["Cumulative \nReturn (%)"],
+                metrics["Maximum \nDrawdown (%)"],
+                metrics["Sharpe Ratio"],
+                metrics["Score"],
+                bestTestSetPerformance[(rewardFunc, seed)][2],
+            ]
+
+        tablePath = getFileWritingLocation(yamlConfig) + "/tables/"
+        num_cols = [c for c in table.columns if c != "Reward Function"]
+        table[num_cols] = table[num_cols].round(4)
+        os.makedirs(tablePath, exist_ok=True)
+        print(format_latex_table(table))
+        with open(tablePath + f"BestTestSet{seed}.tex", "w") as f:
+            f.write(table.to_latex())
 
 
 def bestPerformancesAndStandardDeviations(
@@ -259,7 +264,9 @@ def bestPerformancesAndStandardDeviations(
 
 
 def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, rewards):
+    # AI supported
     meanStdPerReward = {}
+
     for rewardFunc in rewards:
         allTrajectories = []
         mdds = []
@@ -268,64 +275,74 @@ def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, re
 
         for seed in yamlConfig["varied_base_seeds"]:
             traj = np.array(bestTestSetPerformance[(rewardFunc, seed)][-1])
-            normTraj = (
-                traj / yamlConfig["env"]["start_cash"] * 100 - 100
-            )  # Percentage returns for plotting
+
+            normTraj = traj / yamlConfig["env"]["start_cash"] * 100 - 100
             allTrajectories.append(normTraj)
 
-            # Compute MDD and Sharpe on raw values
             raw = traj
-
-            mdd = maxDrawdown(raw) * 100  # convert to percent
-            returns = np.diff(raw) / raw[:-1]
-            sharpe = np.mean(returns) / np.std(returns) if np.std(returns) != 0 else 0
+            mdd = maxDrawdown(raw) * 100.0  # percent
+            rets = np.diff(raw) / raw[:-1]
+            sharpe = (np.mean(rets) / np.std(rets)) if np.std(rets) != 0 else 0.0
 
             mdds.append(mdd)
             sharpes.append(sharpe)
+
             metrs = scoreFormula(traj, avRandReturn, yamlConfig=yamlConfig)
             scores.append(metrs["Score"])
 
         allTrajectories = np.array(allTrajectories)
         mean_traj = np.mean(allTrajectories, axis=0)
-        std_traj = np.std(allTrajectories, axis=0)
 
         meanStdPerReward[rewardFunc] = {
-            "mean_trajectory": mean_traj,
-            "std_trajectory": std_traj,
-            "final_mean_return": mean_traj[-1],
-            "final_std_dev": np.std([traj[-1] for traj in allTrajectories]),
-            "mean_mdd": np.mean(mdds),
-            "mean_sharpe": np.mean(sharpes),
-            "mean_score": np.mean(scores),
+            "final_mean_return": mean_traj[-1],  # %
+            "final_std_dev": np.std(allTrajectories[:, -1]),  # % (across seeds)
+            "mean_mdd": float(np.mean(mdds)),  # %
+            "mean_sharpe": float(np.mean(sharpes)),
+            "mean_score": float(np.mean(scores)),
         }
+    rows = []
+    for rewardFunc in rewards:
+        properName = rewardFunc.replace("_", " = ") if "_" in rewardFunc else rewardFunc
+        s = meanStdPerReward[rewardFunc]
+        rows.append(
+            {
+                "Reward Function": properName,  # non-numeric → string/categorical
+                "Final Mean Return (%)": s["final_mean_return"],
+                "Std Dev (%)": s["final_std_dev"],
+                "Mean MDD (%)": s["mean_mdd"],
+                "Mean Sharpe": s["mean_sharpe"],
+                "Mean Score": s["mean_score"],
+            }
+        )
 
-    indexComparisonTable = [
-        [
+    df = pd.DataFrame(
+        rows,
+        columns=[
             "Reward Function",
             "Final Mean Return (%)",
             "Std Dev (%)",
             "Mean MDD (%)",
             "Mean Sharpe",
             "Mean Score",
-        ]
-    ]
-    for rewardFunc in rewards:
-        properName = rewardFunc.replace("_", " = ") if "_" in rewardFunc else rewardFunc
-        stats = meanStdPerReward[rewardFunc]
-        indexComparisonTable.append(
-            [
-                properName,
-                round(stats["final_mean_return"], 4),
-                round(stats["final_std_dev"], 4),
-                round(stats["mean_mdd"], 4),
-                round(stats["mean_sharpe"], 4),
-                round(stats["mean_score"], 4),
-            ]
-        )
-
-    tabulate_neatly(
-        indexComparisonTable, headers="firstrow", title="Mean Statistics Across Seeds"
+        ],
     )
+
+    df["Reward Function"] = df["Reward Function"].astype("string")
+    num_cols = [c for c in df.columns if c != "Reward Function"]
+    df[num_cols] = df[num_cols].apply(pd.to_numeric, errors="coerce")
+
+    df = df.sort_values("Mean Score", ascending=False, ignore_index=True)
+
+    df_round = df.copy()
+    df_round[num_cols] = df_round[num_cols].round(4)
+
+    tablePath = getFileWritingLocation(yamlConfig) + "/tables/"
+    os.makedirs(tablePath, exist_ok=True)
+
+    with open(tablePath + "mean_stats.tex", "w") as f:
+        f.write(df_round.to_latex())
+
+    print(format_latex_table(df_round))
 
 
 def finalIndexComparisonPlot(
