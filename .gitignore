@@ -25,3 +25,4 @@ instanceKeyPair.pem
 projectExplanation/
 PlotNeuralNet/
 temp_config*
+*.csv
