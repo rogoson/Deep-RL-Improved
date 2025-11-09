@@ -4,6 +4,8 @@ from .ExperimentsFunctions import runExperimentFunction
 from .InitialisationHelpers import getEnv
 from main.utils.EvaluationConfig import setUpEvaluationConfig
 from main.trainingAndEval.Evaluation import evaluateAgent
+import shutil
+from pathlib import Path
 from .TestExperimentsPlotting import (
     plotLearningCurves,
     tabulateBestTestSetPerformance,
@@ -139,4 +141,9 @@ def trainTestingAgents(yamlConfig, agentType="ppo", phase="reward_testing"):
 
 
 if __name__ == "__main__":
+    dataDir = Path(__file__).resolve().parent.parent.parent.parent / "data"
+
+    configDir = Path(__file__).resolve().parent.parent.parent.parent / "configs"
+    shutil.copytree(dataDir / "configs", configDir, dirs_exist_ok=True)
+
     runExperimentFunction(trainTestingAgents)

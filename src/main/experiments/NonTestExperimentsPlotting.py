@@ -134,9 +134,7 @@ def displayResults(aucResults, bestCurveX, bestCurveY, bestParameter):
 
 def runParameterComparison(yamlConfig, env, agentType="ppo"):
 
-    configDir = (
-        Path(__file__).resolve().parent.parent.parent.parent / "data" / "configs"
-    )
+    configDir = Path(__file__).resolve().parent.parent.parent.parent / "configs"
 
     parameterValueMappings = {
         "FEATURE OUTPUT SIZE": yamlConfig["hyperparameters"]["feature_output_sizes"],
@@ -163,8 +161,9 @@ def runParameterComparison(yamlConfig, env, agentType="ppo"):
                 resultsDict["bestParameter"],
             )
             print("=" * 30)
+            market = os.environ["MARKET_INDEX"]
 
-            configYaml = configDir / "config.yaml"
+            configYaml = configDir / f"temp_config_{market}.yaml"
             with configYaml.open("r") as f:
                 data = yaml.safe_load(f)
 

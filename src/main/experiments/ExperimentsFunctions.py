@@ -3,19 +3,14 @@ from main.utils.RestServer import startServer
 from main.utils.VolumeWriter import copyOver
 import os
 import yaml
+from pathlib import Path
 
 
 def runExperimentFunction(experimentFunction):
-    configPath = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "..",
-            "data",
-            "configs",
-            "config.yaml",
-        )
+    market = os.environ["MARKET_INDEX"]
+    configPath = (
+        Path(__file__).resolve().parent.parent.parent.parent
+        / f"configs/temp_config_{market}.yaml"
     )
     with open(configPath) as file:
         yamlConfiguration = yaml.safe_load(file)
@@ -23,6 +18,7 @@ def runExperimentFunction(experimentFunction):
     startServer()
     originalEpochs = yamlConfiguration["epochs"]
     td3Epochs = 2  # manualOverride
+    print(f"Original Epochs: {originalEpochs}.")
     yamlConfiguration["epochs"] = td3Epochs
     experimentFunction(yamlConfig=yamlConfiguration, agentType="td3")
     yamlConfiguration["epochs"] = originalEpochs

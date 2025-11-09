@@ -27,7 +27,7 @@ set "CONFIG_FILE=temp_config_%MARKET_INDEX%.yaml"
 set "VOLUME_NAME=mydata"
 
 REM Use Python to inject the tag into the YAML
-python -c "import yaml, os; idx = os.environ['MARKET_INDEX']; cfg = yaml.safe_load(open('configs/config.yaml')); cfg['active_index'] = idx; yaml.dump(cfg, open(f'temp_config_{idx}.yaml', 'w'))"
+python -c "import yaml, os; idx = os.environ['MARKET_INDEX']; cfg = yaml.safe_load(open('configs/config.yaml')); cfg['active_index'] = idx; yaml.dump(cfg, open(f'configs/temp_config_{idx}.yaml', 'w'))"
 
 REM Check if base image already exists
 docker image inspect rl-base:py312-cu118-v1 >nul 2>&1
@@ -55,8 +55,8 @@ REM Run hyperparameter container
 echo Running hyperparameter container...
 docker run ^
     --name hyperparameter-%MARKET_INDEX% ^
-    -v "%cd%\%CONFIG_FILE%:/app/data/configs/config.yaml" ^
     -v %VOLUME_NAME%:/app/data ^
+    --env MARKET_INDEX=%MARKET_INDEX% ^
     -p %PORT%:8080 ^
     --env-file .env ^
     --gpus all ^
@@ -71,6 +71,7 @@ echo Hyperparameter container finished. Starting reward tests...
 docker run ^
     --name rewardtests-%MARKET_INDEX% ^
     -v %VOLUME_NAME%:/app/data ^
+    --env MARKET_INDEX=%MARKET_INDEX% ^
     -p %PORT%:8080 ^
     --env-file .env ^
     --gpus all ^
@@ -79,4 +80,4 @@ docker run ^
 echo All containers completed successfully.
 
 REM Clean up config file
-del "%CONFIG_FILE%"
+del "configs\%CONFIG_FILE%"
