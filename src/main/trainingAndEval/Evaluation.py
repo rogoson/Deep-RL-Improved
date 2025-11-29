@@ -66,6 +66,7 @@ def evaluateAgent(
     env,
     num,
     conf=None,
+    yamlConfig=None,
     dataType="validation",
     forLearningCurve=False,
     benchmark=False,
@@ -214,9 +215,15 @@ def evaluateAgent(
         """
 
         if forLearningCurve:
+            yamlConfig = {
+                **yamlConfig,
+                "source_folder": sourceFolder,
+                "active_index": env.index,
+            }
             portFolder = (
                 getFRLocationEvaluation(
-                    sourceFolder, environmentIndex=env.index, agentType=strategy
+                    yamlConfig=yamlConfig,
+                    agentType=strategy,
                 )
                 + f"/portfolios/{dataType}/forLearningCurve{env.baseSeed}/"
             )
