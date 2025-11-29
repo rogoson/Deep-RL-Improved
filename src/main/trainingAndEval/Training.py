@@ -178,6 +178,7 @@ def trainingLoop(
                             env=env,
                             num=numberRun,
                             conf=conf,
+                            yamlConfig=yamlConfig,
                             **experimentConfig,
                         )
                         wandb.log(

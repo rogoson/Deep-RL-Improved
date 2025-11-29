@@ -37,9 +37,10 @@ def normData(df, windowSize=0, actuallyNormalise=True):
     return df
 
 
-def getFRLocationEvaluation(sourceFolder="main", environmentIndex="", agentType="ppo"):
+def getFRLocationEvaluation(yamlConfig=None, agentType="ppo"):
+
     return getFileWritingLocation(
-        yamlConfig={"source_folder": sourceFolder, "active_index": environmentIndex},
+        yamlConfig,
         agentType=agentType,
     )
 
