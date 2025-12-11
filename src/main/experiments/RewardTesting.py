@@ -135,9 +135,9 @@ def trainTestingAgents(yamlConfig, agentType="ppo", phase="reward_testing"):
                 )
                 wandb.finish()
 
-        testMetricsAndGraphs(
-            yamlConfig, rewards=REWARDS["Reward"], envDetails=env.datasetsAndDetails
-        )
+    testMetricsAndGraphs(
+        yamlConfig, rewards=REWARDS["Reward"], envDetails=env.datasetsAndDetails
+    )
 
 
 if __name__ == "__main__":

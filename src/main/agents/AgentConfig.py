@@ -124,13 +124,11 @@ def createAgentFromConfig(
             if optionalHyperConfig
             else baseConfig["reward_function"]
         )
-        baseConfig.update(
-            {
-                "feature_output_size": agentCfg["best_feature_output_sizes"][
-                    "cnn" if not useLstmFeature else "lstm"
-                ]
-            }
-        )
+        key = "lstm" if useLstmFeature else "cnn"
+        baseConfig["feature_output_size"] = agentCfg.get(
+            "best_feature_output_sizes", {}
+        ).get(key, 128)
+
         baseConfig.update(
             {
                 "phase": phase,
