@@ -17,7 +17,7 @@ def runExperimentFunction(experimentFunction):
 
     startServer()
     originalEpochs = yamlConfiguration["epochs"]
-    td3Epochs = 2  # manualOverride
+    td3Epochs = 1  # manualOverride, not great but we need to finish this
     print(f"Original Epochs: {originalEpochs}.")
     yamlConfiguration["epochs"] = td3Epochs
     experimentFunction(yamlConfig=yamlConfiguration, agentType="td3")
