@@ -71,6 +71,8 @@ def trainingLoop(
                 )
             ]
         )
+        if yamlConfig.get("max_episodes_per_epoch"):  # quick test only
+            episodeOrder = episodeOrder[: yamlConfig["max_episodes_per_epoch"]]
 
         for episode in episodeOrder:
             print("Episode:", np.where(episodeOrder == episode)[0][0])
@@ -176,7 +178,8 @@ def trainingLoop(
                         learningCurveValues = evaluateAgent(
                             agent=agent,
                             env=env,
-                            num=numberRun,
+                            num=totalTimesteps
+                            // yamlConfig["test"]["learning_curve_frequency"],
                             conf=conf,
                             yamlConfig=yamlConfig,
                             **experimentConfig,

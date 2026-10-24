@@ -43,7 +43,7 @@ env:
       - UNH
       - VZ
       - V
-      - WBA
+      - AMZN # replaced WBA (delisted)
       - WMT
       - DIS
     sse50:
@@ -88,7 +88,7 @@ env:
       - "PCT.L"
       - "FRES.L"
       - "UTG.L"
-      - "SDR.L"
+      - "ABDN.L" # replaced SDR.L (Yahoo history reset Jul 2026)
       - "WTB.L"
       - "HSX.L"
       - "LMP.L"
@@ -102,9 +102,9 @@ env:
       - "AV.L"
       - "TATE.L"
       - "BARC.L"
-      - "BEZ.L"
-      - "PHNX.L"
-      - "AHT.L"
+      - "ADM.L" # replaced BEZ.L (Yahoo history removed Oct 2026)
+      - "LGEN.L" # replaced PHNX.L (renamed/delisted)
+      - "BNZL.L" # replaced AHT.L (moved listing to US)
       - "BP.L"
       - "ANTO.L"
       - "RTO.L"
@@ -115,6 +115,7 @@ env:
     - "ftse100"
   redownload: True
   start_date: "2009-01-01"
+  end_date: "2026-01-01" # fixed so every run/market sees identical data
   period: "1D"
   base_seed: 9
   transaction_cost: 0.0002

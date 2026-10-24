@@ -2,6 +2,7 @@ import numpy as np
 import gymnasium as gym
 import torch
 import os
+import time
 import warnings
 import seaborn as sns
 from main.utils.GeneralUtils import normData
@@ -20,6 +21,9 @@ from matplotlib.animation import FuncAnimation, FFMpegWriter
 device = torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda")
 # Convert all UserWarnings into exceptions
 BASE_DIR = Path(__file__).parent
+# In Docker this points at the shared volume, so each market is downloaded once and reused
+CACHE_DIR = Path(os.environ.get("MARKET_DATA_CACHE", BASE_DIR))
+DOWNLOAD_ATTEMPTS = 5
 warnings.filterwarnings("error", category=RuntimeWarning)
 
 LOGGING_MARKET_DATA = (
@@ -108,11 +112,15 @@ class TimeSeriesEnvironment(gym.Env):
         def retrieveIndexData(ticker, verbose=True):
             # Define date range
             startDate = configuration["env"]["start_date"]
-            endDate = datetime.today().strftime("%Y-%m-%d")
+            endDate = configuration["env"].get(  # fixed for reproducibility
+                "end_date", datetime.today().strftime("%Y-%m-%d")
+            )
 
             ohlcData = {}
             try:
-                stockData = yf.download(ticker, start=startDate, end=endDate)
+                stockData = yf.download(
+                    ticker, start=startDate, end=endDate, timeout=30
+                )
 
                 # To have a more reliable indicator implementation. Mine were fine I believe, but the below is safer.
                 ohlcData[ticker] = stockData[
@@ -199,38 +207,46 @@ class TimeSeriesEnvironment(gym.Env):
                     print(f"Warning: Column '{col}' not found in DataFrame.")
             return dfRounded
 
-        today = datetime.today().strftime("%Y-%m-%d")
-        # Create and write to a file
-        if os.path.exists(BASE_DIR / f"lastDownloaded_{index}.txt"):
-            with open(BASE_DIR / f"lastDownloaded_{index}.txt", "r+") as file:
-                date = file.readline().strip()
-                if date == today:
-                    redownloadData = False
-                else:
-                    file.seek(0)
-                    file.write(f"{today}\n")
-                    file.truncate()
-
-        else:
-            with open(BASE_DIR / f"lastDownloaded_{index}.txt", "w") as file:
-                file.write(f"{today}\n")
+        # Cache keyed on the requested date range (not the calendar day), so a run lasting
+        # several days downloads once and every seed/reward sees identical data.
+        dataRange = (
+            f"{configuration['env']['start_date']} -> "
+            f"{configuration['env'].get('end_date', datetime.today().strftime('%Y-%m-%d'))}"
+        )
+        cacheFile = CACHE_DIR / f"lastDownloaded_{index}.txt"
+        csvsPresent = all(
+            os.path.exists(CACHE_DIR / f"CSVs/{productId}_{period}_periods.csv")
+            for productId in productIds
+        )
+        if (
+            cacheFile.exists()
+            and cacheFile.read_text().strip() == dataRange
+            and csvsPresent
+        ):
+            redownloadData = False
 
         if redownloadData:
             for productId in productIds:
-                dataframe = None
-
-                try:
-                    dataframe = retrieveIndexData(ticker=productId)
-                except Exception:
-                    continue
-
-                if dataframe.empty:
-                    if not os.path.exists(
-                        BASE_DIR / f"CSVs/{productId}_{period}_periods.csv"
-                    ):
-                        raise Exception("Market Data not downloadable and not saved.")
-                    else:
-                        redownloadData = False
+                # Yahoo regularly times out / returns nothing - retry with backoff
+                for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+                    try:
+                        dataframe = retrieveIndexData(ticker=productId)
+                    except Exception as e:
+                        print(f"Download of {productId} failed: {e}")
+                        dataframe = None
+                    if dataframe is not None and not dataframe.empty:
+                        break
+                    if attempt < DOWNLOAD_ATTEMPTS:
+                        print(
+                            f"Retrying {productId} in {15 * attempt}s "
+                            f"(attempt {attempt}/{DOWNLOAD_ATTEMPTS})"
+                        )
+                        time.sleep(15 * attempt)
+                else:
+                    raise Exception(
+                        f"Could not download {productId} after {DOWNLOAD_ATTEMPTS} attempts. "
+                        "If this persists the ticker may be delisted - replace it in config.yaml."
+                    )
                 columnNames = [value[1] for value in list(dataframe.columns.values)]
                 dataframe.columns = columnNames
                 dataframes[productId] = dataframe
@@ -337,17 +353,18 @@ class TimeSeriesEnvironment(gym.Env):
                 df = df.drop(columns=["Open", "High", "Volume", "Low"])
                 df = df.reset_index(drop=True)
                 dataframes[product] = df
-                if not os.path.exists(BASE_DIR / "CSVs/"):
-                    os.makedirs(BASE_DIR / "CSVs/")
+                if not os.path.exists(CACHE_DIR / "CSVs/"):
+                    os.makedirs(CACHE_DIR / "CSVs/")
                 df.to_csv(
-                    BASE_DIR / f"CSVs/{product}_{period}_periods.csv",
+                    CACHE_DIR / f"CSVs/{product}_{period}_periods.csv",
                     sep="\t",
                     index=False,
                 )
+            cacheFile.write_text(f"{dataRange}\n")  # only once all CSVs are saved
         else:
             for productId in productIds:
                 dataframes[productId] = pd.read_csv(
-                    BASE_DIR / f"CSVs/{productId}_{period}_periods.csv", sep="\t"
+                    CACHE_DIR / f"CSVs/{productId}_{period}_periods.csv", sep="\t"
                 )
 
         for product in productIds:

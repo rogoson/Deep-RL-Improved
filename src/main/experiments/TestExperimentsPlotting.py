@@ -21,44 +21,50 @@ def plotLearningCurves(
     FIG_SIZE=(12, 8),
 ):
     bestTestSetPerformance = dict()
+    frequency = yamlConfig["test"]["learning_curve_frequency"]
     for seed in yamlConfig["varied_base_seeds"]:
         cumulativeReturnsData = {}
         scoresData = {}
-        timeSteps = []
+        timeStepsData = {}
 
         for rewardFunc in rewardFunctions:
-            file = f"{getFileWritingLocation(yamlConfig, agentType=agentType)}/portfolios/testing/forLearningCurve{seed}/Reward Function-{rewardFunc}_"
+            folder = f"{getFileWritingLocation(yamlConfig, agentType=agentType)}/portfolios/testing/forLearningCurve{seed}"
+            prefix = f"Reward Function-{rewardFunc}_"
+            # discover whichever checkpoints were actually written, rather than guessing indices
+            checkpoints = sorted(
+                int(name[len(prefix) : -len(".txt")])
+                for name in (os.listdir(folder) if os.path.isdir(folder) else [])
+                if name.startswith(prefix)
+                and name.endswith(".txt")
+                and name[len(prefix) : -len(".txt")].isdigit()
+            )
+            if not checkpoints:
+                raise FileNotFoundError(
+                    f"No learning curve files for '{rewardFunc}' (seed {seed}) in {folder}. "
+                    f"Contents: {os.listdir(folder) if os.path.isdir(folder) else 'folder missing'}"
+                )
             cumReturns = []
             scores = []
-            for i in range(1, yamlConfig["test"]["learning_curve_frequency"]):
-                key = f"{file}{i}.txt"
-                values = None
-                try:
-                    values = np.loadtxt(key)
-                except FileNotFoundError:
-                    continue
+            portfolios = []
+            for checkpoint in checkpoints:
+                values = np.loadtxt(f"{folder}/{prefix}{checkpoint}.txt")
                 metrics = scoreFormula(
                     values, randomMetrics["average_random_return"], yamlConfig
                 )
                 cumReturns.append(metrics["Cumulative \nReturn (%)"])
                 scores.append(metrics["Score"])
-                if len(timeSteps) < yamlConfig["test"]["learning_curve_frequency"] - 1:
-                    timeSteps.append(
-                        i
-                        / yamlConfig["test"]["learning_curve_frequency"]
-                        * sumTestTrainingPeriods
-                    )
+                portfolios.append(values)
+            timeSteps = [checkpoint * frequency for checkpoint in checkpoints]
             cumulativeReturnsData[rewardFunc] = cumReturns
             scoresData[rewardFunc] = scores
-            bestPercentThrough = np.argmax(scores)
+            timeStepsData[rewardFunc] = timeSteps
+            bestPercentThrough = int(np.argmax(scores))
             bestTestSetPerformance[(rewardFunc, seed)] = [
                 max(cumReturns),
                 scores[bestPercentThrough],
                 int(timeSteps[bestPercentThrough]),
+                portfolios[bestPercentThrough],
             ]
-            bestTestSetPerformance[(rewardFunc, seed)].append(
-                np.loadtxt(f"{file}{bestPercentThrough + 1}.txt")
-            )
 
         # Plot cumulative returns for this seed
         plt.figure(figsize=FIG_SIZE)
@@ -78,7 +84,7 @@ def plotLearningCurves(
             )
             numTimeSteps = len(np.append(cumReturns[: WINDOW - 1], smoothedReturns))
             plt.plot(
-                timeSteps[:numTimeSteps],
+                timeStepsData[rewardFunc][:numTimeSteps],
                 np.append(cumReturns[: WINDOW - 1], smoothedReturns),
                 label=plottedName,
                 linewidth=2,
@@ -118,7 +124,7 @@ def plotLearningCurves(
             smoothedScores = np.convolve(scores, np.ones(WINDOW) / WINDOW, mode="valid")
             numTimeSteps = len(np.append(scores[: WINDOW - 1], smoothedScores))
             plt.plot(
-                timeSteps[:numTimeSteps],
+                timeStepsData[rewardFunc][:numTimeSteps],
                 np.append(scores[: WINDOW - 1], smoothedScores),
                 label=plottedName,
                 linewidth=2,
@@ -138,7 +144,7 @@ def plotLearningCurves(
 
 
 def tabulateBestTestSetPerformance(
-    yamlConfig, bestTestSetPerformance, rewardFunctions, randomMetrics
+    yamlConfig, bestTestSetPerformance, rewardFunctions, randomMetrics, agentType="ppo"
 ):
     # Tabulate best agents for this seed
     for seed in yamlConfig["varied_base_seeds"]:
@@ -172,7 +178,7 @@ def tabulateBestTestSetPerformance(
                 bestTestSetPerformance[(rewardFunc, seed)][2],
             ]
 
-        tablePath = getFileWritingLocation(yamlConfig) + "/tables/"
+        tablePath = getFileWritingLocation(yamlConfig, agentType=agentType) + "/tables/"
         num_cols = [c for c in table.columns if c != "Reward Function"]
         table[num_cols] = table[num_cols].round(4)
         os.makedirs(tablePath, exist_ok=True)
@@ -263,7 +269,9 @@ def bestPerformancesAndStandardDeviations(
 ########
 
 
-def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, rewards):
+def meanStatisticsTabulated(
+    yamlConfig, bestTestSetPerformance, avRandReturn, rewards, agentType="ppo"
+):
     # AI supported
     meanStdPerReward = {}
 
@@ -336,7 +344,7 @@ def meanStatisticsTabulated(yamlConfig, bestTestSetPerformance, avRandReturn, re
     df_round = df.copy()
     df_round[num_cols] = df_round[num_cols].round(4)
 
-    tablePath = getFileWritingLocation(yamlConfig) + "/tables/"
+    tablePath = getFileWritingLocation(yamlConfig, agentType=agentType) + "/tables/"
     os.makedirs(tablePath, exist_ok=True)
 
     with open(tablePath + "mean_stats.tex", "w") as f:

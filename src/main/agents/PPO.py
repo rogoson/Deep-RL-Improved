@@ -513,6 +513,7 @@ class PPOAgent:
             / self.__class__.__name__
             / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
             / self.experimentState
+            / self.rewardFunction  # best model tracked per reward function
         )
 
         sd.mkdir(parents=True, exist_ok=True)
@@ -565,6 +566,7 @@ class PPOAgent:
             / self.__class__.__name__
             / Path(("CNNFeature" if self.hasCNNFeature else "LSTMFeature"))
             / self.experimentState
+            / self.rewardFunction  # best model tracked per reward function
         )
         self.critic.load_state_dict(
             torch.load(sd / self.critic.save_file_name, weights_only=True)
