@@ -1,2 +1,16 @@
 .env
 *.env
+# generated outputs / caches - never bake old results into the image
+src/main/plotsAndPortfolioTrajectories/
+src/main/animations/dow/
+src/main/animations/ftse100/
+src/main/animations/sse50/
+src/main/agents/dow/
+src/main/agents/ftse100/
+src/main/agents/sse50/
+src/main/environments/CSVs/
+src/main/environments/lastDownloaded*.txt
+**/__pycache__/
+wandb/
+code.zip
+configs/temp_config_*.yaml

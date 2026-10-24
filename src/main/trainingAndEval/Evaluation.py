@@ -214,6 +214,13 @@ def evaluateAgent(
         The below is a lot of 'saving' code, for saving models and portfolio trajectories where necessary
         """
 
+        # The 70% stop-loss ends an episode early. Treat a stopped-out portfolio as liquidated to
+        # cash for the rest of the period, so every trajectory spans the same dates and can be
+        # compared/averaged across seeds. (Done after the env state is pickled for animation.)
+        missingSteps = env.episodeLength - len(env.PORTFOLIO_VALUES)
+        if missingSteps > 0:
+            env.PORTFOLIO_VALUES.extend([env.PORTFOLIO_VALUES[-1]] * missingSteps)
+
         if forLearningCurve:
             yamlConfig = {
                 **yamlConfig,

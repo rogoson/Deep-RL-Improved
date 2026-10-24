@@ -12,16 +12,14 @@ def copyOver():
 
     dataDir.mkdir(parents=True, exist_ok=True)
 
-    shutil.copytree(
-        sourceDir / "main" / "agents", dataDir / "agents", dirs_exist_ok=True
-    )
-    shutil.copytree(
-        sourceDir / "main" / "animations", dataDir / "animations", dirs_exist_ok=True
-    )
-    shutil.copytree(
-        sourceDir / "main" / "plotsAndPortfolioTrajectories",
-        dataDir / "plotsAndPortfolioTrajectories",
-        dirs_exist_ok=True,
-    )
-
-    shutil.copytree(configDir, dataDir / "configs", dirs_exist_ok=True)
+    for source, destination in [
+        (sourceDir / "main" / "agents", dataDir / "agents"),
+        (sourceDir / "main" / "animations", dataDir / "animations"),
+        (
+            sourceDir / "main" / "plotsAndPortfolioTrajectories",
+            dataDir / "plotsAndPortfolioTrajectories",
+        ),
+        (configDir, dataDir / "configs"),
+    ]:
+        if source.exists():  # may not exist yet if a run failed early
+            shutil.copytree(source, destination, dirs_exist_ok=True)
