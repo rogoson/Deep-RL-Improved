@@ -31,4 +31,15 @@ A word of caution - reinforcement learning experiments are quite memory and comp
 
 You might want to ensure you have a stable internet connection when running the containers, for wandb logging (log into your wandb account) to see gradients/parameters etc. for each run and to spin up the RestServer.
 
+## Transparency Statement
+
+The conceptual work, algorithm design and methodology of this project are my own. This includes the problem formulation, the reward functions (including the CVaR-informed reward), the PPO/TD3 and feature-extractor architectures and implementation, and the experimental design. Some smaller helper functions are marked as "AI supported" in code comments.
+
+The final stage of the project was carried out with Claude (Anthropic's AI assistant, via Claude Code):
+
+- **Final bug fixes to the reward-testing pipeline.** Including: fixing a reward output bug, learning-curve file handling, stop-loss trajectory handling, the random-baseline seeding, the data-download caching and retries, replacing delisted tickers, Docker config handling, and a quick-test mode.
+- **Results analysis and write-up.** This covers the analysis of the final experiment outputs and the Results section, abstract refinement and conclusion of the [Project Explanation](ProjectExplanation.pdf), including its results tables and figures. Claude also corrected factual details in the methodology section where they no longer matched the code (for example, the data period, the TD3 parameters and the sliding-window formulae).
+
+The experiments themselves were run on my own machine.
+
 Thanks for stopping by :)
